@@ -34,8 +34,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshData = useCallback(() => {
-        setClasses(fetchClasses());
-        setStudents(fetchStudents());
+        const sortedClasses = fetchClasses().sort((a, b) => a.name.localeCompare(b.name));
+        const sortedStudents = fetchStudents().sort((a, b) => a.name.localeCompare(b.name));
+
+        setClasses(sortedClasses);
+        setStudents(sortedStudents);
         setAttendance(fetchAttendance());
         setBimesters(fetchBimesters());
         setIsLoading(false);
@@ -43,12 +46,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const hydrateFromCloud = useCallback((data: any) => {
         if (data.classes) {
-            saveToStorage(STORAGE_KEYS.CLASSES, data.classes);
-            setClasses(data.classes);
+            const sortedClasses = [...data.classes].sort((a, b) => a.name.localeCompare(b.name));
+            saveToStorage(STORAGE_KEYS.CLASSES, sortedClasses);
+            setClasses(sortedClasses);
         }
         if (data.students) {
-            saveToStorage(STORAGE_KEYS.STUDENTS, data.students);
-            setStudents(data.students);
+            const sortedStudents = [...data.students].sort((a, b) => a.name.localeCompare(b.name));
+            saveToStorage(STORAGE_KEYS.STUDENTS, sortedStudents);
+            setStudents(sortedStudents);
         }
         if (data.attendance) {
             saveToStorage(STORAGE_KEYS.ATTENDANCE, data.attendance);
