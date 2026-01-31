@@ -20,7 +20,8 @@ export default function AttendanceTracker() {
     const [attendance, setAttendance] = useState<Map<string, AttendanceStatus>>(new Map());
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
+    const [recordExists, setRecordExists] = useState(false);
 
     // Filter students when class, situation or allStudents change
     useEffect(() => {
@@ -43,8 +44,12 @@ export default function AttendanceTracker() {
     // Load attendance when date or students change
     useEffect(() => {
         if (selectedClassId && students.length >= 0) {
-            // Load existing attendance for the selected date
+            // Check if record exists for any student in this class on this date
             const existingAttendance = getAttendanceByDate(selectedDate);
+            const classStudentIds = students.map(s => String(s.id));
+            const hasRecords = existingAttendance.some(r => classStudentIds.includes(String(r.studentId)));
+            setRecordExists(hasRecords);
+
             const attendanceMap = new Map<string, AttendanceStatus>();
 
             // First, set everyone visible to 'P' as default if no records exist
@@ -250,6 +255,24 @@ export default function AttendanceTracker() {
 
             {selectedClassId && students.length > 0 && (
                 <>
+                    {recordExists && (
+                        <div style={{
+                            marginBottom: '1rem',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid var(--color-success)',
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            color: 'var(--color-success)',
+                            fontWeight: '500'
+                        }}>
+                            <Check size={20} />
+                            Frequência já registrada para esta turma nesta data. Os dados abaixo foram carregados da nuvem.
+                        </div>
+                    )}
+
                     {message && (
                         <div className={`message ${message.type}`} style={{
                             marginBottom: '1rem',
@@ -258,9 +281,12 @@ export default function AttendanceTracker() {
                             gap: '0.5rem',
                             padding: '1rem',
                             borderRadius: 'var(--radius-md)',
-                            background: message.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
-                            color: message.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-                            border: `1px solid ${message.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`
+                            background: message.type === 'success' ? 'var(--color-success-bg)' :
+                                message.type === 'info' ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-danger-bg)',
+                            color: message.type === 'success' ? 'var(--color-success)' :
+                                message.type === 'info' ? '#3b82f6' : 'var(--color-danger)',
+                            border: `1px solid ${message.type === 'success' ? 'var(--color-success)' :
+                                message.type === 'info' ? '#3b82f6' : 'var(--color-danger)'}`
                         }}>
                             {message.type === 'success' && <Check size={18} />}
                             {message.text}
