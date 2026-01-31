@@ -187,7 +187,7 @@ export default function AttendanceTracker() {
         }>();
 
         classAttendance.forEach(record => {
-            const date = record.date;
+            const date = record.date.substring(0, 10);
             if (!groups.has(date)) {
                 // Determine bimester
                 const recordDate = new Date(date);
@@ -529,10 +529,10 @@ export default function AttendanceTracker() {
                                 {historySummary.length > 0 ? (
                                     historySummary.map((item, index) => (
                                         <tr key={index}>
-                                            <td>{item.date.split('-').reverse().join('/')}</td>
-                                            <td>{item.bimester}</td>
-                                            <td>{item.lessons} Tempo(s)</td>
-                                            <td>
+                                            <td style={{ paddingRight: '2rem' }}>{item.date.split('-').reverse().join('/')}</td>
+                                            <td style={{ paddingRight: '2rem' }}>{item.bimester}</td>
+                                            <td style={{ paddingRight: '2rem' }}>{item.lessons} Tempo(s)</td>
+                                            <td style={{ paddingRight: '2rem' }}>
                                                 <span style={{
                                                     color: item.presenceRate >= 75 ? 'var(--color-success)' : 'var(--color-danger)',
                                                     fontWeight: '600'
