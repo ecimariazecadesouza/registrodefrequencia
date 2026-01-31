@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Filter } from 'lucide-react';
 import type { Student, Class, StudentSituation } from '../types';
-import { getStudents, saveStudent, deleteStudent, getClasses } from '../utils/storage';
+import { saveStudent, deleteStudent } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
+import { useData } from '../context/DataContext';
 
 export default function StudentManager() {
-    const [students, setStudents] = useState<Student[]>([]);
-    const [classes, setClasses] = useState<Class[]>([]);
+    const { students, classes, refreshData } = useData();
     const [showModal, setShowModal] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [filterClassId, setFilterClassId] = useState<string>('all');
@@ -19,15 +19,6 @@ export default function StudentManager() {
         situation: 'Cursando' as any,
         batchNames: '',
     });
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = () => {
-        setStudents(getStudents());
-        setClasses(getClasses());
-    };
 
     const filteredStudents = students.filter(s => {
         const matchesClass = filterClassId === 'all' || s.classId === filterClassId;
@@ -69,7 +60,7 @@ export default function StudentManager() {
             saveStudent(student);
         }
 
-        loadData();
+        refreshData();
         closeModal();
         triggerCloudSync(); // Background sync
     };
@@ -90,7 +81,7 @@ export default function StudentManager() {
     const handleDelete = (studentId: string) => {
         if (confirm('Tem certeza que deseja excluir este protagonista? Todos os registros de frequência serão removidos.')) {
             deleteStudent(studentId);
-            loadData();
+            refreshData();
             triggerCloudSync(); // Background sync
         }
     };

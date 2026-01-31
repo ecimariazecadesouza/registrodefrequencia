@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import type { Class } from '../types';
-import { getClasses, saveClass, deleteClass, getStudentsByClass } from '../utils/storage';
+import { saveClass, deleteClass, getStudentsByClass } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
+import { useData } from '../context/DataContext';
 
 export default function ClassManager() {
-    const [classes, setClasses] = useState<Class[]>([]);
+    const { classes, refreshData } = useData();
     const [showModal, setShowModal] = useState(false);
     const [editingClass, setEditingClass] = useState<Class | null>(null);
     const [formData, setFormData] = useState({
@@ -13,14 +14,6 @@ export default function ClassManager() {
         year: new Date().getFullYear().toString(),
         period: 'Manhã',
     });
-
-    useEffect(() => {
-        loadClasses();
-    }, []);
-
-    const loadClasses = () => {
-        setClasses(getClasses());
-    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,7 +27,7 @@ export default function ClassManager() {
         };
 
         saveClass(classData);
-        loadClasses();
+        refreshData();
         closeModal();
         triggerCloudSync(); // Background sync
     };
@@ -52,7 +45,7 @@ export default function ClassManager() {
     const handleDelete = (classId: string) => {
         if (confirm('Tem certeza que deseja excluir esta turma? Todos os protagonistas e registros de frequência serão removidos.')) {
             deleteClass(classId);
-            loadClasses();
+            refreshData();
             triggerCloudSync(); // Background sync
         }
     };

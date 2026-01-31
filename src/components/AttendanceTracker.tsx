@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Save, Check } from 'lucide-react';
-import type { Class, Student, AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
+import type { Student, AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
 import {
-    getClasses,
-    getStudentsByClass,
     getAttendanceByDate,
     saveAttendance
 } from '../utils/storage';
+import { useData } from '../context/DataContext';
 
 export default function AttendanceTracker() {
-    const [classes, setClasses] = useState<Class[]>([]);
+    const { classes, students: allStudents, refreshData } = useData();
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>(
         new Date().toISOString().split('T')[0]
@@ -23,32 +22,32 @@ export default function AttendanceTracker() {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
+    // Filter students when class, situation or allStudents change
     useEffect(() => {
-        setClasses(getClasses());
-    }, []);
+        if (!selectedClassId) {
+            setStudents([]);
+            return;
+        }
 
+        let classStudents = allStudents.filter(s => s.classId === selectedClassId);
+
+        if (filterSituation !== 'Todas') {
+            classStudents = classStudents.filter(s => s.situation === filterSituation);
+        }
+
+        setStudents(classStudents);
+    }, [selectedClassId, filterSituation, allStudents]);
+
+    // Load attendance when date or students change
     useEffect(() => {
-        if (selectedClassId) {
-            if (hasUnsavedChanges && !confirm('Existem alterações não salvas. Deseja descartá-las?')) {
-                return;
-            }
-
-            let classStudents = getStudentsByClass(selectedClassId);
-
-            // Apply situation filter
-            if (filterSituation !== 'Todas') {
-                classStudents = classStudents.filter(s => s.situation === filterSituation);
-            }
-
-            setStudents(classStudents);
-
+        if (selectedClassId && students.length >= 0) {
             // Load existing attendance for the selected date
             const existingAttendance = getAttendanceByDate(selectedDate);
             const attendanceMap = new Map<string, AttendanceStatus>();
 
             // First, set everyone visible to 'P' as default if no records exist
             if (existingAttendance.length === 0) {
-                classStudents.forEach(student => {
+                students.forEach(student => {
                     for (let i = 0; i < lessonsPerDay; i++) {
                         attendanceMap.set(`${student.id}-${i}`, 'P');
                     }
@@ -62,18 +61,20 @@ export default function AttendanceTracker() {
 
             // Adjust lessonsPerDay if records exist
             if (existingAttendance.length > 0) {
-                const maxIdx = Math.max(...existingAttendance.map(r => r.lessonIndex));
-                setLessonsPerDay(maxIdx + 1);
+                const classRecords = existingAttendance.filter(r => students.some(s => s.id === r.studentId));
+                if (classRecords.length > 0) {
+                    const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
+                    setLessonsPerDay(maxIdx + 1);
+                }
             }
 
             setAttendance(attendanceMap);
             setHasUnsavedChanges(false);
         } else {
-            setStudents([]);
             setAttendance(new Map());
             setHasUnsavedChanges(false);
         }
-    }, [selectedClassId, selectedDate, filterSituation]); // Removed lessonsPerDay to avoid reset on shift change
+    }, [selectedClassId, selectedDate, students]);
 
     const handleAttendanceChange = (studentId: string, lessonIndex: number, status: AttendanceStatus) => {
         const key = `${studentId}-${lessonIndex}`;
@@ -106,6 +107,9 @@ export default function AttendanceTracker() {
 
             // Sync all to cloud in a single batch
             await saveBatchAttendanceToCloud(records);
+
+            // Refresh local data context
+            refreshData();
 
             setHasUnsavedChanges(false);
             setMessage({ type: 'success', text: 'Chamada salva com sucesso na nuvem!' });

@@ -1,28 +1,19 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus, Filter } from 'lucide-react';
-import type { Class, Student, Bimester } from '../types';
+import type { Bimester } from '../types';
+
 import {
-    getClasses,
-    getStudents,
     calculateStudentStats,
-    getBimesters
 } from '../utils/storage';
+import { useData } from '../context/DataContext';
 
 export default function Reports() {
-    const [classes, setClasses] = useState<Class[]>([]);
+    const { classes, students, bimesters } = useData();
     const [selectedClassId, setSelectedClassId] = useState<string>('all');
     const [selectedBimester, setSelectedBimester] = useState<number>(0); // 0 = Todo o ano
     const [selectedSituation, setSelectedSituation] = useState<string>('Cursando');
     const [selectedFrequencyLevel, setSelectedFrequencyLevel] = useState<string>('all');
-    const [bimesters, setBimesters] = useState<Bimester[]>([]);
-    const [students, setStudents] = useState<Student[]>([]);
     const [reportData, setReportData] = useState<any[]>([]);
-
-    useEffect(() => {
-        setClasses(getClasses());
-        setStudents(getStudents());
-        setBimesters(getBimesters());
-    }, []);
 
     useEffect(() => {
         let bimesterStart: string | undefined;
