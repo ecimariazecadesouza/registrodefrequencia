@@ -3,7 +3,7 @@
 import type { Class, Student, AttendanceRecord, AttendanceStats, StudentStats, Bimester } from '../types';
 import { DEFAULT_BIMESTERS } from '../types';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
     CLASSES: 'school_classes',
     STUDENTS: 'school_students',
     ATTENDANCE: 'school_attendance',
@@ -22,7 +22,7 @@ const getFromStorage = <T>(key: string): T[] => {
     }
 };
 
-const saveToStorage = <T>(key: string, data: T[]): void => {
+export const saveToStorage = <T>(key: string, data: T[]): void => {
     try {
         localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
