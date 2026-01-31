@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import type { Class } from '../types';
 import { getClasses, saveClass, deleteClass, getStudentsByClass } from '../utils/storage';
