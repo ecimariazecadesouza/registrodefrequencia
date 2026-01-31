@@ -53,6 +53,24 @@ export const saveAttendanceToCloud = async (record: AttendanceRecord): Promise<v
     }
 };
 
+export const saveBatchAttendanceToCloud = async (records: AttendanceRecord[]): Promise<void> => {
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({
+                action: 'saveBatchAttendance',
+                records
+            }),
+        });
+    } catch (error) {
+        console.error('Batch Attendance Sync Error:', error);
+    }
+};
+
 /**
  * Utility to sync all local data to the cloud in the background.
  * Call this after major changes (adding classes, students, etc.)

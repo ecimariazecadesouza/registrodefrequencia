@@ -12,6 +12,8 @@ export default function Reports() {
     const [classes, setClasses] = useState<Class[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<string>('all');
     const [selectedBimester, setSelectedBimester] = useState<number>(0); // 0 = Todo o ano
+    const [selectedSituation, setSelectedSituation] = useState<string>('Cursando');
+    const [selectedFrequencyLevel, setSelectedFrequencyLevel] = useState<string>('all');
     const [bimesters, setBimesters] = useState<Bimester[]>([]);
     const [students, setStudents] = useState<Student[]>([]);
     const [reportData, setReportData] = useState<any[]>([]);
@@ -32,9 +34,14 @@ export default function Reports() {
             bimesterEnd = b.end;
         }
 
-        const filteredStudents = selectedClassId === 'all'
+        let filteredStudents = selectedClassId === 'all'
             ? students
             : students.filter(s => s.classId === selectedClassId);
+
+        // Filter by situation
+        if (selectedSituation !== 'all') {
+            filteredStudents = filteredStudents.filter(s => s.situation === selectedSituation);
+        }
 
         const data = filteredStudents.map(student => {
             const stats = calculateStudentStats(student.id, bimesterStart, bimesterEnd);
@@ -47,20 +54,32 @@ export default function Reports() {
             };
         });
 
-        // Sort by attendance rate (descending)
-        data.sort((a, b) => b.stats.attendanceRate - a.stats.attendanceRate);
+        // Filter by frequency level
+        let finalData = data;
+        if (selectedFrequencyLevel !== 'all') {
+            finalData = data.filter(item => {
+                const rate = item.stats.attendanceRate;
+                if (selectedFrequencyLevel === 'excelente') return rate >= 90;
+                if (selectedFrequencyLevel === 'regular') return rate >= 75 && rate < 90;
+                if (selectedFrequencyLevel === 'critico') return rate < 75;
+                return true;
+            });
+        }
 
-        setReportData(data);
-    }, [selectedClassId, selectedBimester, students, classes]);
+        // Sort by attendance rate (descending)
+        finalData.sort((a, b) => b.stats.attendanceRate - a.stats.attendanceRate);
+
+        setReportData(finalData);
+    }, [selectedClassId, selectedBimester, selectedSituation, selectedFrequencyLevel, students, classes]);
 
     const getAttendanceIcon = (rate: number) => {
-        if (rate >= 85) return <TrendingUp size={20} color="var(--color-success)" />;
+        if (rate >= 90) return <TrendingUp size={20} color="var(--color-success)" />;
         if (rate >= 75) return <Minus size={20} color="var(--color-warning)" />;
         return <TrendingDown size={20} color="var(--color-danger)" />;
     };
 
     const getAttendanceColor = (rate: number) => {
-        if (rate >= 85) return 'var(--color-success)';
+        if (rate >= 90) return 'var(--color-success)';
         if (rate >= 75) return 'var(--color-warning)';
         return 'var(--color-danger)';
     };
@@ -84,7 +103,7 @@ export default function Reports() {
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Filtrar por Turma</label>
+                        <label className="form-label">Turma</label>
                         <select
                             className="form-select"
                             value={selectedClassId}
@@ -100,7 +119,35 @@ export default function Reports() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Período de Monitoramento</label>
+                        <label className="form-label">Situação</label>
+                        <select
+                            className="form-select"
+                            value={selectedSituation}
+                            onChange={(e) => setSelectedSituation(e.target.value)}
+                        >
+                            <option value="all">Todas</option>
+                            <option value="Cursando">Cursando</option>
+                            <option value="Evasão">Evasão</option>
+                            <option value="Transferência">Transferência</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Nível de Frequência</label>
+                        <select
+                            className="form-select"
+                            value={selectedFrequencyLevel}
+                            onChange={(e) => setSelectedFrequencyLevel(e.target.value)}
+                        >
+                            <option value="all">Todos os Níveis</option>
+                            <option value="excelente">Excelente (≥ 90%)</option>
+                            <option value="regular">Regular (75-89%)</option>
+                            <option value="critico">Crítico (&lt; 75%)</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Período</label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Filter size={20} color="var(--color-text-muted)" />
                             <select
@@ -108,10 +155,10 @@ export default function Reports() {
                                 value={selectedBimester}
                                 onChange={(e) => setSelectedBimester(parseInt(e.target.value))}
                             >
-                                <option value={0}>Todo o Ano Letivo</option>
+                                <option value={0}>2026 Completo</option>
                                 {bimesters.map((b: Bimester) => (
                                     <option key={b.id} value={b.id}>
-                                        {b.name} ({new Date(b.start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })} - {new Date(b.end).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })})
+                                        {b.name}
                                     </option>
                                 ))}
                             </select>
@@ -281,13 +328,13 @@ export default function Reports() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <TrendingUp size={16} color="var(--color-success)" />
                                     <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                                        ≥ 85% - Excelente
+                                        ≥ 90% - Excelente
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <Minus size={16} color="var(--color-warning)" />
                                     <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                                        75-84% - Regular
+                                        75-89% - Regular
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

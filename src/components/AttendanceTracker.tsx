@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, Save, Check } from 'lucide-react';
 import type { Class, Student, AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
 import {
     getClasses,
@@ -7,7 +7,6 @@ import {
     getAttendanceByDate,
     saveAttendance
 } from '../utils/storage';
-import { saveAttendanceToCloud } from '../utils/api';
 
 export default function AttendanceTracker() {
     const [classes, setClasses] = useState<Class[]>([]);
@@ -20,6 +19,9 @@ export default function AttendanceTracker() {
     const [students, setStudents] = useState<Student[]>([]);
     // Map key: studentId-lessonIndex value: status
     const [attendance, setAttendance] = useState<Map<string, AttendanceStatus>>(new Map());
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     useEffect(() => {
         setClasses(getClasses());
@@ -27,6 +29,10 @@ export default function AttendanceTracker() {
 
     useEffect(() => {
         if (selectedClassId) {
+            if (hasUnsavedChanges && !confirm('Existem alterações não salvas. Deseja descartá-las?')) {
+                return;
+            }
+
             let classStudents = getStudentsByClass(selectedClassId);
 
             // Apply situation filter
@@ -40,58 +46,86 @@ export default function AttendanceTracker() {
             const existingAttendance = getAttendanceByDate(selectedDate);
             const attendanceMap = new Map<string, AttendanceStatus>();
 
-            // First, set everyone visible to 'P' as default
-            classStudents.forEach(student => {
-                for (let i = 0; i < lessonsPerDay; i++) {
-                    attendanceMap.set(`${student.id}-${i}`, 'P');
-                }
-            });
+            // First, set everyone visible to 'P' as default if no records exist
+            if (existingAttendance.length === 0) {
+                classStudents.forEach(student => {
+                    for (let i = 0; i < lessonsPerDay; i++) {
+                        attendanceMap.set(`${student.id}-${i}`, 'P');
+                    }
+                });
+            } else {
+                // Otherwise just load what's there
+                existingAttendance.forEach(record => {
+                    attendanceMap.set(`${record.studentId}-${record.lessonIndex}`, record.status);
+                });
+            }
 
-            // Then overwrite with actual records if they exist
-            let maxLessonIndex = 0;
-            existingAttendance.forEach(record => {
-                attendanceMap.set(`${record.studentId}-${record.lessonIndex}`, record.status);
-                if (record.lessonIndex >= maxLessonIndex) {
-                    maxLessonIndex = record.lessonIndex;
-                }
-            });
-
-            // If there are existing records, adjust lessonsPerDay to match the highest lessonIndex found
+            // Adjust lessonsPerDay if records exist
             if (existingAttendance.length > 0) {
-                setLessonsPerDay(maxLessonIndex + 1);
+                const maxIdx = Math.max(...existingAttendance.map(r => r.lessonIndex));
+                setLessonsPerDay(maxIdx + 1);
             }
 
             setAttendance(attendanceMap);
+            setHasUnsavedChanges(false);
         } else {
             setStudents([]);
             setAttendance(new Map());
+            setHasUnsavedChanges(false);
         }
-    }, [selectedClassId, selectedDate, lessonsPerDay, filterSituation]);
+    }, [selectedClassId, selectedDate, filterSituation]); // Removed lessonsPerDay to avoid reset on shift change
 
     const handleAttendanceChange = (studentId: string, lessonIndex: number, status: AttendanceStatus) => {
         const key = `${studentId}-${lessonIndex}`;
         const newAttendance = new Map(attendance);
-
-        if (newAttendance.get(key) === status) {
-            newAttendance.delete(key);
-            // In a real app, you might want to delete from storage too or mark as unmarked
-        } else {
-            newAttendance.set(key, status);
-        }
-
+        newAttendance.set(key, status);
         setAttendance(newAttendance);
+        setHasUnsavedChanges(true);
+    };
 
-        // Save to storage
-        const record: AttendanceRecord = {
-            id: `${studentId}-${selectedDate}-${lessonIndex}`,
-            studentId,
-            date: selectedDate,
-            lessonIndex,
-            status,
-        };
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            const { saveBatchAttendanceToCloud } = await import('../utils/api');
+            const records: AttendanceRecord[] = [];
+            attendance.forEach((status, key) => {
+                const [studentId, lessonIndexStr] = key.split('-');
+                const lessonIndex = parseInt(lessonIndexStr);
 
-        saveAttendance(record);
-        saveAttendanceToCloud(record); // Background cloud sync
+                records.push({
+                    id: `${studentId}-${selectedDate}-${lessonIndex}`,
+                    studentId,
+                    date: selectedDate,
+                    lessonIndex,
+                    status,
+                });
+            });
+
+            // Save all to local storage
+            records.forEach(record => saveAttendance(record));
+
+            // Sync all to cloud in a single batch
+            await saveBatchAttendanceToCloud(records);
+
+            setHasUnsavedChanges(false);
+            setMessage({ type: 'success', text: 'Chamada salva com sucesso na nuvem!' });
+            setTimeout(() => setMessage(null), 3000);
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Erro ao salvar chamada: ' + String(error) });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const markAllAsPresent = () => {
+        const newAttendance = new Map(attendance);
+        students.forEach(student => {
+            for (let i = 0; i < lessonsPerDay; i++) {
+                newAttendance.set(`${student.id}-${i}`, 'P');
+            }
+        });
+        setAttendance(newAttendance);
+        setHasUnsavedChanges(true);
     };
 
     const getInitials = (name: string) => {
@@ -210,6 +244,23 @@ export default function AttendanceTracker() {
 
             {selectedClassId && students.length > 0 && (
                 <>
+                    {message && (
+                        <div className={`message ${message.type}`} style={{
+                            marginBottom: '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '1rem',
+                            borderRadius: 'var(--radius-md)',
+                            background: message.type === 'success' ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+                            color: message.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
+                            border: `1px solid ${message.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'}`
+                        }}>
+                            {message.type === 'success' && <Check size={18} />}
+                            {message.text}
+                        </div>
+                    )}
+
                     <div className="stats-grid" style={{ marginBottom: '2rem' }}>
                         <div className="stat-card">
                             <div className="stat-icon success">
@@ -253,10 +304,43 @@ export default function AttendanceTracker() {
                     </div>
 
                     <div className="card">
-                        <div className="card-header">
-                            <h2 className="card-title">Lista de Protagonistas</h2>
-                            <div style={{ color: 'var(--color-text-muted)' }}>
-                                {students.length} protagonista{students.length !== 1 ? 's' : ''} • {lessonsPerDay} aula{lessonsPerDay !== 1 ? 's' : ''}/dia
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                            <div>
+                                <h2 className="card-title">Lista de Protagonistas</h2>
+                                <div style={{ color: 'var(--color-text-muted)' }}>
+                                    {students.length} protagonista{students.length !== 1 ? 's' : ''} • {lessonsPerDay} aula{lessonsPerDay !== 1 ? 's' : ''}/dia
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <button
+                                    className="btn btn-sm"
+                                    onClick={markAllAsPresent}
+                                    disabled={isSaving}
+                                    style={{
+                                        color: 'var(--color-success)',
+                                        borderColor: 'var(--color-success)',
+                                        background: 'transparent',
+                                        border: '1px solid var(--color-success)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem'
+                                    }}
+                                >
+                                    <Check size={16} /> Marcar Todos P
+                                </button>
+
+                                {hasUnsavedChanges && (
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                        style={{ boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                    >
+                                        <Save size={18} />
+                                        {isSaving ? 'Salvando...' : 'Salvar Chamada'}
+                                    </button>
+                                )}
                             </div>
                         </div>
 
