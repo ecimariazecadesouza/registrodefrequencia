@@ -3,9 +3,10 @@ import { Home, Users, GraduationCap, ClipboardCheck, BarChart3, Settings } from 
 interface NavigationProps {
     currentView: string;
     onNavigate: (view: string) => void;
+    isOpen: boolean;
 }
 
-export default function Navigation({ currentView, onNavigate }: NavigationProps) {
+export default function Navigation({ currentView, onNavigate, isOpen }: NavigationProps) {
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: Home },
         { id: 'classes', label: 'Turmas', icon: GraduationCap },
@@ -16,7 +17,7 @@ export default function Navigation({ currentView, onNavigate }: NavigationProps)
     ];
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
             <div className="sidebar-header">
                 <div className="logo">📚</div>
                 <h1 className="app-title">Sistema de Frequência</h1>

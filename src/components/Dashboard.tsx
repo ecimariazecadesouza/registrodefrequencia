@@ -1,20 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { GraduationCap, Users, TrendingUp, Calendar, History, CheckCircle2 } from 'lucide-react';
 import { calculateStudentStats } from '../utils/storage';
 import { useData } from '../context/DataContext';
 
 export default function Dashboard() {
     const { classes, students, attendance } = useData();
-    const [stats, setStats] = useState({
-        totalClasses: 0,
-        totalStudents: 0,
-        averageAttendance: 0,
-        totalRecords: 0,
-    });
-    const [recentActivity, setRecentActivity] = useState<any[]>([]);
-
-    useEffect(() => {
-        // Calculate average attendance
+    const stats = useMemo(() => {
         let totalAttendance = 0;
         let studentCount = 0;
 
@@ -28,17 +19,16 @@ export default function Dashboard() {
 
         const avgAttendance = studentCount > 0 ? totalAttendance / studentCount : 0;
 
-        setStats({
+        return {
             totalClasses: classes.length,
             totalStudents: students.length,
             averageAttendance: avgAttendance,
             totalRecords: attendance.length,
-        });
+        };
+    }, [classes, students, attendance]);
 
-        // Calculate recent activity (unique date-class combinations)
+    const recentActivity = useMemo(() => {
         const activityMap = new Map<string, { date: string, className: string, count: number }>();
-
-        // Sort attendance by date descending
         const sortedAttendance = [...attendance].sort((a, b) => b.date.localeCompare(a.date));
 
         sortedAttendance.forEach(record => {
@@ -61,7 +51,7 @@ export default function Dashboard() {
             }
         });
 
-        setRecentActivity(Array.from(activityMap.values()).slice(0, 5));
+        return Array.from(activityMap.values()).slice(0, 5);
     }, [classes, students, attendance]);
 
     return (

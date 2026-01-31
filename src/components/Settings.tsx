@@ -136,7 +136,7 @@ export default function Settings() {
                 <p className="page-subtitle">Configure os períodos letivos, feriados e sincronização com a nuvem</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
                 <div className="card">
                     <div className="card-header">
                         <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -239,7 +239,7 @@ export default function Settings() {
                         </div>
                     </div>
 
-                    <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    <div className="table-container" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                         <table className="table">
                             <thead>
                                 <tr>

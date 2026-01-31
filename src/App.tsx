@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Menu, X } from 'lucide-react';
 import './App.css';
 import Navigation from './components/Navigation';
 import Dashboard from './components/Dashboard';
@@ -13,58 +14,45 @@ import { DataProvider, useData } from './context/DataContext';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { hydrateFromCloud } = useData();
 
   useEffect(() => {
     const initApp = async () => {
       try {
-        console.log('App starting and syncing...');
-
-        // 1. Initialize sample data if empty (fallback)
         initializeSampleData();
-
-        // 2. Auto-Sync from Cloud
         const { fetchCloudData } = await import('./utils/api');
-
         try {
           const cloudData = await fetchCloudData();
           if (cloudData && cloudData.classes && cloudData.classes.length > 0) {
-            console.log('Cloud data found, hydrating local storage...');
             hydrateFromCloud(cloudData);
-            console.log('Auto-sync complete.');
           }
         } catch (syncErr) {
-          console.warn('Initial cloud sync failed, using local data:', syncErr);
+          console.warn('Initial cloud sync failed:', syncErr);
         }
-
-        console.log('App initialized.');
       } catch (err) {
         console.error('Initialization error:', err);
         setError(String(err));
       }
     };
-
     initApp();
   }, [hydrateFromCloud]);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [currentView]);
 
   const renderView = () => {
     try {
       switch (currentView) {
-        case 'dashboard':
-          return <Dashboard />;
-        case 'classes':
-          return <ClassManager />;
-        case 'students':
-          return <StudentManager />;
-        case 'attendance':
-          return <AttendanceTracker />;
-        case 'reports':
-          return <Reports />;
-        case 'settings':
-          return <Settings />;
-        default:
-          return <Dashboard />;
+        case 'dashboard': return <Dashboard />;
+        case 'classes': return <ClassManager />;
+        case 'students': return <StudentManager />;
+        case 'attendance': return <AttendanceTracker />;
+        case 'reports': return <Reports />;
+        case 'settings': return <Settings />;
+        default: return <Dashboard />;
       }
     } catch (err) {
       console.error('Render error:', err);
@@ -96,7 +84,27 @@ function AppContent() {
 
   return (
     <div className="app-container">
-      <Navigation currentView={currentView} onNavigate={setCurrentView} />
+      <header className="mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="logo" style={{ width: '32px', height: '32px', fontSize: '1rem' }}>📚</div>
+          <span style={{ fontWeight: '700', fontSize: '1rem' }}>Sistema MZS</span>
+        </div>
+        <button className="menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </header>
+
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+
+      <Navigation
+        currentView={currentView}
+        onNavigate={setCurrentView}
+        isOpen={isSidebarOpen}
+      />
+
       <main className="main-content">
         {renderView()}
       </main>

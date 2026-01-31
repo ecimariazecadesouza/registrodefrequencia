@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar, Save, Check, Pencil, Search, History } from 'lucide-react';
-import type { Student, AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
+import type { AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
 import {
     getAttendanceByDate,
     saveAttendance
@@ -15,7 +15,6 @@ export default function AttendanceTracker() {
     );
     const [lessonsPerDay, setLessonsPerDay] = useState<number>(1);
     const [filterSituation, setFilterSituation] = useState<StudentSituation | 'Todas'>('Cursando');
-    const [students, setStudents] = useState<Student[]>([]);
     // Map key: studentId-lessonIndex value: status
     const [attendance, setAttendance] = useState<Map<string, AttendanceStatus>>(new Map());
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -23,13 +22,11 @@ export default function AttendanceTracker() {
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
     const [recordExists, setRecordExists] = useState(false);
     const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
+    const [searchStudent, setSearchStudent] = useState('');
 
-    // Filter students when class, situation or allStudents change
-    useEffect(() => {
-        if (!selectedClassId) {
-            setStudents([]);
-            return;
-        }
+    // Filter students when class, situation, allStudents or search change
+    const students = useMemo(() => {
+        if (!selectedClassId) return [];
 
         let classStudents = allStudents.filter(s => String(s.classId) === String(selectedClassId));
 
@@ -39,8 +36,16 @@ export default function AttendanceTracker() {
             );
         }
 
-        setStudents(classStudents);
-    }, [selectedClassId, filterSituation, allStudents]);
+        if (searchStudent) {
+            const query = searchStudent.toLowerCase();
+            classStudents = classStudents.filter(s =>
+                s.name.toLowerCase().includes(query) ||
+                s.registration.toLowerCase().includes(query)
+            );
+        }
+
+        return classStudents;
+    }, [selectedClassId, filterSituation, allStudents, searchStudent]);
 
     // Check for holiday
     useEffect(() => {
@@ -155,7 +160,7 @@ export default function AttendanceTracker() {
             .slice(0, 2);
     };
 
-    const getStatusCount = () => {
+    const statusCounts = useMemo(() => {
         const counts = {
             present: 0,
             absent: 0,
@@ -176,9 +181,9 @@ export default function AttendanceTracker() {
         });
 
         return counts;
-    };
+    }, [attendance, students, lessonsPerDay]);
 
-    const getSummary = () => {
+    const historySummary = useMemo(() => {
         if (!selectedClassId) return [];
 
         const classStudentIds = allStudents.filter(s => String(s.classId) === String(selectedClassId)).map(s => String(s.id));
@@ -196,7 +201,6 @@ export default function AttendanceTracker() {
         classAttendance.forEach(record => {
             const date = record.date.substring(0, 10);
             if (!groups.has(date)) {
-                // Determine bimester
                 const recordDate = new Date(date);
                 const bimester = bimesters.find(b => {
                     const start = new Date(b.start);
@@ -228,10 +232,7 @@ export default function AttendanceTracker() {
                 presenceRate: (g.presentCount / g.totalCount) * 100
             }))
             .sort((a, b) => b.date.localeCompare(a.date));
-    };
-
-    const historySummary = getSummary();
-    const statusCounts = getStatusCount();
+    }, [selectedClassId, allStudents, allRecords, bimesters]);
 
     return (
         <div>
@@ -308,6 +309,31 @@ export default function AttendanceTracker() {
                             <option value="Evasão">Evasão</option>
                             <option value="Transferência">Transferência</option>
                         </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Buscar Protagonista</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Nome ou RA..."
+                                value={searchStudent}
+                                onChange={(e) => setSearchStudent(e.target.value)}
+                                style={{ paddingLeft: '2.5rem' }}
+                                disabled={!selectedClassId}
+                            />
+                            <Search
+                                size={20}
+                                style={{
+                                    position: 'absolute',
+                                    left: '0.75rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--color-text-muted)'
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

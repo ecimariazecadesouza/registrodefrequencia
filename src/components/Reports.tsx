@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { TrendingUp, TrendingDown, Minus, Filter } from 'lucide-react';
 import type { Bimester } from '../types';
 
@@ -13,13 +13,12 @@ export default function Reports() {
     const [selectedBimester, setSelectedBimester] = useState<number>(0); // 0 = Todo o ano
     const [selectedSituation, setSelectedSituation] = useState<string>('Cursando');
     const [selectedFrequencyLevel, setSelectedFrequencyLevel] = useState<string>('all');
-    const [reportData, setReportData] = useState<any[]>([]);
 
-    useEffect(() => {
+    const reportData = useMemo(() => {
         let bimesterStart: string | undefined;
         let bimesterEnd: string | undefined;
 
-        if (selectedBimester > 0) {
+        if (selectedBimester > 0 && bimesters.length >= selectedBimester) {
             const b = bimesters[selectedBimester - 1];
             bimesterStart = b.start;
             bimesterEnd = b.end;
@@ -29,7 +28,6 @@ export default function Reports() {
             ? students
             : students.filter(s => String(s.classId) === String(selectedClassId));
 
-        // Filter by situation
         if (selectedSituation !== 'all') {
             filteredStudents = filteredStudents.filter(s =>
                 String(s.situation).trim().toLowerCase() === String(selectedSituation).trim().toLowerCase()
@@ -47,7 +45,6 @@ export default function Reports() {
             };
         });
 
-        // Filter by frequency level
         let finalData = data;
         if (selectedFrequencyLevel !== 'all') {
             finalData = data.filter(item => {
@@ -59,11 +56,8 @@ export default function Reports() {
             });
         }
 
-        // Sort by attendance rate (descending)
-        finalData.sort((a, b) => b.stats.attendanceRate - a.stats.attendanceRate);
-
-        setReportData(finalData);
-    }, [selectedClassId, selectedBimester, selectedSituation, selectedFrequencyLevel, students, classes]);
+        return [...finalData].sort((a, b) => b.stats.attendanceRate - a.stats.attendanceRate);
+    }, [selectedClassId, selectedBimester, selectedSituation, selectedFrequencyLevel, students, classes, bimesters]);
 
     const getAttendanceIcon = (rate: number) => {
         if (rate >= 90) return <TrendingUp size={20} color="var(--color-success)" />;
@@ -171,38 +165,17 @@ export default function Reports() {
                         </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                        <table style={{
-                            width: '100%',
-                            borderCollapse: 'collapse',
-                            fontSize: '0.875rem'
-                        }}>
+                    <div className="table-container">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                             <thead>
-                                <tr style={{
-                                    borderBottom: '2px solid var(--color-border)',
-                                    textAlign: 'left'
-                                }}>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                                        Protagonista
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                                        Turma
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>
-                                        Presenças
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>
-                                        Faltas
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>
-                                        Justif.
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>
-                                        Total Aulas
-                                    </th>
-                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>
-                                        Taxa
-                                    </th>
+                                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Protagonista</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Turma</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>Presenças</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>Faltas</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>Justif.</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>Aulas</th>
+                                    <th style={{ padding: '1rem', color: 'var(--color-text-muted)', fontWeight: 600, textAlign: 'center' }}>Taxa</th>
                                 </tr>
                             </thead>
                             <tbody>
