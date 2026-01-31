@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Edit2, Trash2, X, Filter } from 'lucide-react';
-import type { Student, Class, StudentSituation } from '../types';
+import type { Student, StudentSituation } from '../types';
 import { saveStudent, deleteStudent } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
 import { useData } from '../context/DataContext';
