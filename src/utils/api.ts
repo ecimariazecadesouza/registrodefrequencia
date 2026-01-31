@@ -1,11 +1,12 @@
 import { API_URL } from '../config';
-import type { Class, Student, AttendanceRecord, Bimester } from '../types';
+import type { Class, Student, AttendanceRecord, Bimester, Holiday } from '../types';
 
 export interface CloudData {
     classes: Class[];
     students: Student[];
     attendance: AttendanceRecord[];
     bimesters: Bimester[];
+    holidays: Holiday[];
 }
 
 export const fetchCloudData = async (): Promise<CloudData> => {
@@ -76,13 +77,14 @@ export const saveBatchAttendanceToCloud = async (records: AttendanceRecord[]): P
  * Call this after major changes (adding classes, students, etc.)
  */
 export const triggerCloudSync = async () => {
-    const { getClasses, getStudents, getAttendance, getBimesters } = await import('./storage');
+    const { getClasses, getStudents, getAttendance, getBimesters, getHolidays } = await import('./storage');
     try {
         const data = {
             classes: getClasses(),
             students: getStudents(),
             attendance: getAttendance(),
-            bimesters: getBimesters()
+            bimesters: getBimesters(),
+            holidays: getHolidays()
         };
         await saveCloudData(data);
         console.log('Background sync successful');

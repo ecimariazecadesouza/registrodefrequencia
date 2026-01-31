@@ -8,7 +8,7 @@ import {
 import { useData } from '../context/DataContext';
 
 export default function AttendanceTracker() {
-    const { classes, students: allStudents, attendance: allRecords, bimesters, refreshData } = useData();
+    const { classes, students: allStudents, attendance: allRecords, bimesters, holidays, refreshData } = useData();
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>(
         new Date().toISOString().split('T')[0]
@@ -22,6 +22,7 @@ export default function AttendanceTracker() {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
     const [recordExists, setRecordExists] = useState(false);
+    const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
 
     // Filter students when class, situation or allStudents change
     useEffect(() => {
@@ -40,6 +41,12 @@ export default function AttendanceTracker() {
 
         setStudents(classStudents);
     }, [selectedClassId, filterSituation, allStudents]);
+
+    // Check for holiday
+    useEffect(() => {
+        const holiday = holidays.find(h => h.date === selectedDate);
+        setCurrentHoliday(holiday ? { description: holiday.description, type: holiday.type } : null);
+    }, [selectedDate, holidays]);
 
     // Load attendance when date or students change
     useEffect(() => {
@@ -307,7 +314,25 @@ export default function AttendanceTracker() {
 
             {selectedClassId && students.length > 0 && (
                 <>
-                    {recordExists && (
+                    {currentHoliday && (
+                        <div style={{
+                            marginBottom: '1rem',
+                            padding: '0.75rem 1rem',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            border: '1px solid var(--color-warning)',
+                            borderRadius: 'var(--radius-md)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            color: 'var(--color-warning)',
+                            fontWeight: '500'
+                        }}>
+                            <Calendar size={20} />
+                            Atenção: Esta data está marcada como {currentHoliday.type.toUpperCase()}: {currentHoliday.description}.
+                        </div>
+                    )}
+
+                    {recordExists && !currentHoliday && (
                         <div style={{
                             marginBottom: '1rem',
                             padding: '0.75rem 1rem',

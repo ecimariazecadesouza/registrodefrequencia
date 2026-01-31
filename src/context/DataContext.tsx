@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { Class, Student, AttendanceRecord, Bimester } from '../types';
+import type { Class, Student, AttendanceRecord, Bimester, Holiday } from '../types';
 import {
     getClasses as fetchClasses,
     getStudents as fetchStudents,
     getAttendance as fetchAttendance,
     getBimesters as fetchBimesters,
+    getHolidays as fetchHolidays,
     saveToStorage,
     STORAGE_KEYS
 } from '../utils/storage';
@@ -14,12 +15,14 @@ interface DataContextType {
     students: Student[];
     attendance: AttendanceRecord[];
     bimesters: Bimester[];
+    holidays: Holiday[];
     refreshData: () => void;
     hydrateFromCloud: (data: {
         classes: Class[];
         students: Student[];
         attendance: AttendanceRecord[];
         bimesters: Bimester[];
+        holidays: Holiday[];
     }) => void;
     isLoading: boolean;
 }
@@ -31,6 +34,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [students, setStudents] = useState<Student[]>([]);
     const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
     const [bimesters, setBimesters] = useState<Bimester[]>([]);
+    const [holidays, setHolidays] = useState<Holiday[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const refreshData = useCallback(() => {
@@ -41,6 +45,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setStudents(sortedStudents);
         setAttendance(fetchAttendance());
         setBimesters(fetchBimesters());
+        setHolidays(fetchHolidays());
         setIsLoading(false);
     }, []);
 
@@ -63,6 +68,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             saveToStorage(STORAGE_KEYS.BIMESTERS, data.bimesters);
             setBimesters(data.bimesters);
         }
+        if (data.holidays) {
+            saveToStorage(STORAGE_KEYS.HOLIDAYS, data.holidays);
+            setHolidays(data.holidays);
+        }
     }, []);
 
     useEffect(() => {
@@ -75,6 +84,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             students,
             attendance,
             bimesters,
+            holidays,
             refreshData,
             hydrateFromCloud,
             isLoading

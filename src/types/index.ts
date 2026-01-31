@@ -38,6 +38,13 @@ export interface Bimester {
   end: string;
 }
 
+export interface Holiday {
+  id: string;
+  date: string;
+  description: string;
+  type: 'Feriado' | 'Recesso' | 'Férias';
+}
+
 export const DEFAULT_BIMESTERS: Bimester[] = [
   { id: 1, name: '1º Bimestre', start: '2026-02-05', end: '2026-04-23' },
   { id: 2, name: '2º Bimestre', start: '2026-04-24', end: '2026-07-23' },

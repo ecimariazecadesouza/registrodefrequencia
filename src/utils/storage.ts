@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
     STUDENTS: 'school_students',
     ATTENDANCE: 'school_attendance',
     BIMESTERS: 'school_bimesters',
+    HOLIDAYS: 'school_holidays',
 };
 
 // Generic storage functions
@@ -262,4 +263,22 @@ export const initializeSampleData = (): void => {
     } catch (error) {
         console.error('Failed to initialize sample data:', error);
     }
+};
+// Holidays
+export const getHolidays = (): any[] => getFromStorage<any>(STORAGE_KEYS.HOLIDAYS);
+
+export const saveHoliday = (holiday: any): void => {
+    const holidays = getHolidays();
+    const index = holidays.findIndex(h => h.id === holiday.id);
+    if (index >= 0) {
+        holidays[index] = holiday;
+    } else {
+        holidays.push(holiday);
+    }
+    saveToStorage(STORAGE_KEYS.HOLIDAYS, holidays);
+};
+
+export const deleteHoliday = (holidayId: string): void => {
+    const holidays = getHolidays().filter(h => h.id !== holidayId);
+    saveToStorage(STORAGE_KEYS.HOLIDAYS, holidays);
 };
