@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Save, Check } from 'lucide-react';
+import { Calendar, Save, Check, Pencil, Search, History } from 'lucide-react';
 import type { Student, AttendanceRecord, AttendanceStatus, StudentSituation } from '../types';
 import {
     getAttendanceByDate,
@@ -8,7 +8,7 @@ import {
 import { useData } from '../context/DataContext';
 
 export default function AttendanceTracker() {
-    const { classes, students: allStudents, refreshData } = useData();
+    const { classes, students: allStudents, attendance: allRecords, bimesters, refreshData } = useData();
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [selectedDate, setSelectedDate] = useState<string>(
         new Date().toISOString().split('T')[0]
@@ -158,8 +158,7 @@ export default function AttendanceTracker() {
         };
 
         attendance.forEach((status, key) => {
-            // Only count records for students in the current view and selection
-            if (students.some(s => key.startsWith(s.id))) {
+            if (students.some(s => key.startsWith(String(s.id)))) {
                 switch (status) {
                     case 'P': counts.present++; break;
                     case 'F': counts.absent++; break;
@@ -172,6 +171,59 @@ export default function AttendanceTracker() {
         return counts;
     };
 
+    const getSummary = () => {
+        if (!selectedClassId) return [];
+
+        const classStudentIds = allStudents.filter(s => String(s.classId) === String(selectedClassId)).map(s => String(s.id));
+        const classAttendance = allRecords.filter(r => classStudentIds.includes(String(r.studentId)));
+
+        const groups = new Map<string, {
+            date: string,
+            bimester: string,
+            lessons: number,
+            presenceRate: number,
+            presentCount: number,
+            totalCount: number
+        }>();
+
+        classAttendance.forEach(record => {
+            const date = record.date;
+            if (!groups.has(date)) {
+                // Determine bimester
+                const recordDate = new Date(date);
+                const bimester = bimesters.find(b => {
+                    const start = new Date(b.start);
+                    const end = new Date(b.end);
+                    return recordDate >= start && recordDate <= end;
+                });
+
+                groups.set(date, {
+                    date,
+                    bimester: bimester ? bimester.name : 'N/A',
+                    lessons: 0,
+                    presenceRate: 0,
+                    presentCount: 0,
+                    totalCount: 0
+                });
+            }
+
+            const group = groups.get(date)!;
+            group.totalCount++;
+            if (record.status === 'P' || record.status === 'J') {
+                group.presentCount++;
+            }
+            group.lessons = Math.max(group.lessons, record.lessonIndex + 1);
+        });
+
+        return Array.from(groups.values())
+            .map(g => ({
+                ...g,
+                presenceRate: (g.presentCount / g.totalCount) * 100
+            }))
+            .sort((a, b) => b.date.localeCompare(a.date));
+    };
+
+    const historySummary = getSummary();
     const statusCounts = getStatusCount();
 
     return (
@@ -453,6 +505,80 @@ export default function AttendanceTracker() {
                     <p style={{ color: 'var(--color-text-muted)', fontSize: '1.125rem' }}>
                         Selecione uma turma e uma data para registrar a frequência.
                     </p>
+                </div>
+            )}
+
+            {selectedClassId && (
+                <div className="card" style={{ marginTop: '2rem' }}>
+                    <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <History size={20} color="var(--color-primary)" />
+                        <h2 className="card-title">Histórico de Chamadas - {classes.find(c => String(c.id) === String(selectedClassId))?.name}</h2>
+                    </div>
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>DATA</th>
+                                    <th>PERÍODO</th>
+                                    <th>TEMPO</th>
+                                    <th>PRESENÇA</th>
+                                    <th style={{ textAlign: 'right' }}>AÇÕES</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {historySummary.length > 0 ? (
+                                    historySummary.map((item, index) => (
+                                        <tr key={index}>
+                                            <td>{item.date.split('-').reverse().join('/')}</td>
+                                            <td>{item.bimester}</td>
+                                            <td>{item.lessons} Tempo(s)</td>
+                                            <td>
+                                                <span style={{
+                                                    color: item.presenceRate >= 75 ? 'var(--color-success)' : 'var(--color-danger)',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    {item.presenceRate.toFixed(2)}%
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                                                    <button
+                                                        className="btn-icon"
+                                                        title="Ver Detalhes"
+                                                        onClick={() => {
+                                                            setSelectedDate(item.date);
+                                                            setLessonsPerDay(item.lessons);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                    >
+                                                        <Search size={18} />
+                                                    </button>
+                                                    <button
+                                                        className="btn-primary"
+                                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                                        onClick={() => {
+                                                            setSelectedDate(item.date);
+                                                            setLessonsPerDay(item.lessons);
+                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                        }}
+                                                    >
+                                                        <Pencil size={14} style={{ marginRight: '4px' }} />
+                                                        Editar
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
+                                            Nenhum registro encontrado para esta turma.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>
