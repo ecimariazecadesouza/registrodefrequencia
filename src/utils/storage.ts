@@ -45,17 +45,17 @@ export const saveClass = (classData: Class): void => {
 };
 
 export const deleteClass = (classId: string): void => {
-    const classes = getClasses().filter(c => c.id !== classId);
+    const classes = getClasses().filter(c => String(c.id) !== String(classId));
     saveToStorage(STORAGE_KEYS.CLASSES, classes);
 
     // Also delete related students and attendance
-    const students = getStudents().filter(s => s.classId !== classId);
+    const students = getStudents().filter(s => String(s.classId) !== String(classId));
     saveToStorage(STORAGE_KEYS.STUDENTS, students);
 
     const studentIds = getStudents()
-        .filter(s => s.classId === classId)
+        .filter(s => String(s.classId) === String(classId))
         .map(s => s.id);
-    const attendance = getAttendance().filter(a => !studentIds.includes(a.studentId));
+    const attendance = getAttendance().filter(a => !studentIds.some(id => String(id) === String(a.studentId)));
     saveToStorage(STORAGE_KEYS.ATTENDANCE, attendance);
 };
 
@@ -63,12 +63,12 @@ export const deleteClass = (classId: string): void => {
 export const getStudents = (): Student[] => getFromStorage<Student>(STORAGE_KEYS.STUDENTS);
 
 export const getStudentsByClass = (classId: string): Student[] => {
-    return getStudents().filter(s => s.classId === classId);
+    return getStudents().filter(s => String(s.classId) === String(classId));
 };
 
 export const saveStudent = (student: Student): void => {
     const students = getStudents();
-    const index = students.findIndex(s => s.id === student.id);
+    const index = students.findIndex(s => String(s.id) === String(student.id));
     if (index >= 0) {
         students[index] = student;
     } else {
@@ -78,11 +78,11 @@ export const saveStudent = (student: Student): void => {
 };
 
 export const deleteStudent = (studentId: string): void => {
-    const students = getStudents().filter(s => s.id !== studentId);
+    const students = getStudents().filter(s => String(s.id) !== String(studentId));
     saveToStorage(STORAGE_KEYS.STUDENTS, students);
 
     // Also delete related attendance
-    const attendance = getAttendance().filter(a => a.studentId !== studentId);
+    const attendance = getAttendance().filter(a => String(a.studentId) !== String(studentId));
     saveToStorage(STORAGE_KEYS.ATTENDANCE, attendance);
 };
 
@@ -113,7 +113,7 @@ export const getAttendanceByStudentAndMonth = (
 export const saveAttendance = (attendance: AttendanceRecord): void => {
     const records = getAttendance();
     const index = records.findIndex(
-        a => a.studentId === attendance.studentId &&
+        a => String(a.studentId) === String(attendance.studentId) &&
             a.date === attendance.date &&
             a.lessonIndex === attendance.lessonIndex
     );
@@ -127,7 +127,7 @@ export const saveAttendance = (attendance: AttendanceRecord): void => {
 
 export const deleteAttendance = (studentId: string, date: string, lessonIndex?: number): void => {
     const records = getAttendance().filter(
-        a => !(a.studentId === studentId &&
+        a => !(String(a.studentId) === String(studentId) &&
             a.date === date &&
             (lessonIndex === undefined || a.lessonIndex === lessonIndex))
     );
@@ -172,7 +172,7 @@ export const calculateStudentStats = (
         ? ((stats.present + stats.justified) / validDays) * 100
         : 0;
 
-    const student = getStudents().find(s => s.id === studentId);
+    const student = getStudents().find(s => String(s.id) === String(studentId));
 
     return {
         ...stats,

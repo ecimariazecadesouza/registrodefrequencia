@@ -21,8 +21,9 @@ export default function StudentManager() {
     });
 
     const filteredStudents = students.filter(s => {
-        const matchesClass = filterClassId === 'all' || s.classId === filterClassId;
-        const matchesSituation = filterSituation === 'all' || s.situation === filterSituation;
+        const matchesClass = filterClassId === 'all' || String(s.classId) === String(filterClassId);
+        const matchesSituation = filterSituation === 'all' ||
+            String(s.situation).trim().toLowerCase() === String(filterSituation).trim().toLowerCase();
         return matchesClass && matchesSituation;
     });
 
@@ -100,7 +101,7 @@ export default function StudentManager() {
     };
 
     const getClassName = (classId: string) => {
-        const classItem = classes.find(c => c.id === classId);
+        const classItem = classes.find(c => String(c.id) === String(classId));
         return classItem?.name || 'Sem turma';
     };
 

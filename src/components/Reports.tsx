@@ -27,11 +27,13 @@ export default function Reports() {
 
         let filteredStudents = selectedClassId === 'all'
             ? students
-            : students.filter(s => s.classId === selectedClassId);
+            : students.filter(s => String(s.classId) === String(selectedClassId));
 
         // Filter by situation
         if (selectedSituation !== 'all') {
-            filteredStudents = filteredStudents.filter(s => s.situation === selectedSituation);
+            filteredStudents = filteredStudents.filter(s =>
+                String(s.situation).trim().toLowerCase() === String(selectedSituation).trim().toLowerCase()
+            );
         }
 
         const data = filteredStudents.map(student => {

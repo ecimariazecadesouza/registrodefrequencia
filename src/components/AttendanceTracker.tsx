@@ -29,10 +29,12 @@ export default function AttendanceTracker() {
             return;
         }
 
-        let classStudents = allStudents.filter(s => s.classId === selectedClassId);
+        let classStudents = allStudents.filter(s => String(s.classId) === String(selectedClassId));
 
         if (filterSituation !== 'Todas') {
-            classStudents = classStudents.filter(s => s.situation === filterSituation);
+            classStudents = classStudents.filter(s =>
+                String(s.situation).trim().toLowerCase() === String(filterSituation).trim().toLowerCase()
+            );
         }
 
         setStudents(classStudents);
