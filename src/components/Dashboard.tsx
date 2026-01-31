@@ -48,13 +48,16 @@ export default function Dashboard() {
             const classItem = classes.find(c => String(c.id) === String(student.classId));
             if (!classItem) return;
 
-            const key = `${record.date}-${classItem.id}`;
+            const key = `${record.date.substring(0, 10)}-${classItem.id}`;
             if (!activityMap.has(key)) {
                 activityMap.set(key, {
-                    date: record.date,
+                    date: record.date.substring(0, 10),
                     className: classItem.name,
                     count: 1
                 });
+            } else {
+                const existing = activityMap.get(key)!;
+                activityMap.set(key, { ...existing, count: existing.count + 1 });
             }
         });
 
@@ -134,7 +137,7 @@ export default function Dashboard() {
                                                 {activity.className}
                                             </div>
                                             <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                                                Data: {activity.date.split('-').reverse().join('/')}
+                                                Data: {activity.date.split('-').reverse().join('/')} • {activity.count} Registros
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-success)' }}>
