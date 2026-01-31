@@ -14,15 +14,39 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      console.log('App starting...');
-      // Initialize sample data on first load
-      initializeSampleData();
-      console.log('App initialized.');
-    } catch (err) {
-      console.error('Initialization error:', err);
-      setError(String(err));
-    }
+    const initApp = async () => {
+      try {
+        console.log('App starting and syncing...');
+
+        // 1. Initialize sample data if empty (fallback)
+        initializeSampleData();
+
+        // 2. Auto-Sync from Cloud
+        const { fetchCloudData } = await import('./utils/api');
+        const { saveToStorage, STORAGE_KEYS } = await import('./utils/storage');
+
+        try {
+          const cloudData = await fetchCloudData();
+          if (cloudData && cloudData.classes && cloudData.classes.length > 0) {
+            console.log('Cloud data found, hydrating local storage...');
+            saveToStorage(STORAGE_KEYS.CLASSES, cloudData.classes);
+            saveToStorage(STORAGE_KEYS.STUDENTS, cloudData.students);
+            saveToStorage(STORAGE_KEYS.ATTENDANCE, cloudData.attendance);
+            saveToStorage(STORAGE_KEYS.BIMESTERS, cloudData.bimesters);
+            console.log('Auto-sync complete.');
+          }
+        } catch (syncErr) {
+          console.warn('Initial cloud sync failed, using local data:', syncErr);
+        }
+
+        console.log('App initialized.');
+      } catch (err) {
+        console.error('Initialization error:', err);
+        setError(String(err));
+      }
+    };
+
+    initApp();
   }, []);
 
   const renderView = () => {

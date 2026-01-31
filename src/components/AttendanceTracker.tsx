@@ -7,6 +7,7 @@ import {
     getAttendanceByDate,
     saveAttendance
 } from '../utils/storage';
+import { saveAttendanceToCloud } from '../utils/api';
 
 export default function AttendanceTracker() {
     const [classes, setClasses] = useState<Class[]>([]);
@@ -90,6 +91,7 @@ export default function AttendanceTracker() {
         };
 
         saveAttendance(record);
+        saveAttendanceToCloud(record); // Background cloud sync
     };
 
     const getInitials = (name: string) => {

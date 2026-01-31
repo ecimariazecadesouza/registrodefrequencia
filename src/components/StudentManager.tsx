@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Filter } from 'lucide-react';
 import type { Student, Class, StudentSituation } from '../types';
 import { getStudents, saveStudent, deleteStudent, getClasses } from '../utils/storage';
+import { triggerCloudSync } from '../utils/api';
 
 export default function StudentManager() {
     const [students, setStudents] = useState<Student[]>([]);
@@ -70,6 +71,7 @@ export default function StudentManager() {
 
         loadData();
         closeModal();
+        triggerCloudSync(); // Background sync
     };
 
     const handleEdit = (student: Student) => {
@@ -89,6 +91,7 @@ export default function StudentManager() {
         if (confirm('Tem certeza que deseja excluir este protagonista? Todos os registros de frequência serão removidos.')) {
             deleteStudent(studentId);
             loadData();
+            triggerCloudSync(); // Background sync
         }
     };
 

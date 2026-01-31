@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Save, RefreshCw, Calendar, CloudUpload, CloudDownload } from 'lucide-react';
 import { getBimesters, saveBimesters, getClasses, getStudents, getAttendance, saveToStorage, STORAGE_KEYS } from '../utils/storage';
-import { fetchCloudData, saveCloudData } from '../utils/api';
+import { fetchCloudData, saveCloudData, triggerCloudSync } from '../utils/api';
 import type { Bimester } from '../types';
 
 export default function Settings() {
@@ -25,6 +25,7 @@ export default function Settings() {
         try {
             saveBimesters(bimesters);
             setMessage({ type: 'success', text: 'Configurações de bimesters salvas com sucesso!' });
+            triggerCloudSync(); // Background sync
             setTimeout(() => setMessage(null), 3000);
         } catch (error) {
             setMessage({ type: 'error', text: 'Erro ao salvar configurações.' });

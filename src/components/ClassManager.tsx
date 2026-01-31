@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import type { Class } from '../types';
 import { getClasses, saveClass, deleteClass, getStudentsByClass } from '../utils/storage';
+import { triggerCloudSync } from '../utils/api';
 
 export default function ClassManager() {
     const [classes, setClasses] = useState<Class[]>([]);
@@ -35,6 +35,7 @@ export default function ClassManager() {
         saveClass(classData);
         loadClasses();
         closeModal();
+        triggerCloudSync(); // Background sync
     };
 
     const handleEdit = (classItem: Class) => {
@@ -51,6 +52,7 @@ export default function ClassManager() {
         if (confirm('Tem certeza que deseja excluir esta turma? Todos os protagonistas e registros de frequência serão removidos.')) {
             deleteClass(classId);
             loadClasses();
+            triggerCloudSync(); // Background sync
         }
     };
 
