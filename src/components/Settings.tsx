@@ -243,21 +243,21 @@ export default function Settings() {
                         <table className="table">
                             <thead>
                                 <tr>
-                                    <th>Data</th>
+                                    <th style={{ width: '120px' }}>Data</th>
                                     <th>Descrição</th>
-                                    <th>Ações</th>
+                                    <th style={{ width: '80px', textAlign: 'center' }}>Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {holidays.sort((a, b) => a.date.localeCompare(b.date)).map(h => (
                                     <tr key={h.id}>
-                                        <td>{h.date.substring(0, 10).split('-').reverse().join('/')}</td>
+                                        <td style={{ whiteSpace: 'nowrap' }}>{h.date.substring(0, 10).split('-').reverse().join('/')}</td>
                                         <td>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{h.type}</div>
-                                            {h.description}
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', fontWeight: 600 }}>{h.type}</div>
+                                            <div style={{ fontWeight: 500 }}>{h.description}</div>
                                         </td>
-                                        <td>
-                                            <button className="btn-icon" onClick={() => handleDeleteHoliday(h.id)}>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <button className="btn-icon" onClick={() => handleDeleteHoliday(h.id)} style={{ padding: '0.5rem', background: 'transparent' }}>
                                                 <Trash2 size={18} color="var(--color-danger)" />
                                             </button>
                                         </td>
