@@ -251,7 +251,7 @@ export default function Settings() {
                             <tbody>
                                 {holidays.sort((a, b) => a.date.localeCompare(b.date)).map(h => (
                                     <tr key={h.id}>
-                                        <td>{h.date.split('-').reverse().join('/')}</td>
+                                        <td>{h.date.substring(0, 10).split('-').reverse().join('/')}</td>
                                         <td>
                                             <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{h.type}</div>
                                             {h.description}

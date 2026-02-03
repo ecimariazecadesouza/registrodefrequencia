@@ -127,7 +127,7 @@ export default function Dashboard() {
                                                 {activity.className}
                                             </div>
                                             <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-                                                Data: {activity.date.split('-').reverse().join('/')} • {activity.count} Registros
+                                                Data: {activity.date.substring(0, 10).split('-').reverse().join('/')} • {activity.count} Registros
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-success)' }}>

@@ -580,7 +580,7 @@ export default function AttendanceTracker() {
                                 {historySummary.length > 0 ? (
                                     historySummary.map((item, index) => (
                                         <tr key={index}>
-                                            <td style={{ paddingRight: '2rem' }}>{item.date.split('-').reverse().join('/')}</td>
+                                            <td style={{ paddingRight: '2rem' }}>{item.date.substring(0, 10).split('-').reverse().join('/')}</td>
                                             <td style={{ paddingRight: '2rem' }}>{item.bimester}</td>
                                             <td style={{ paddingRight: '2rem' }}>{item.lessons} Tempo(s)</td>
                                             <td style={{ paddingRight: '2rem' }}>
