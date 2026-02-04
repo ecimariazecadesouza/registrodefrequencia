@@ -38,10 +38,11 @@ export default function AttendanceTracker() {
 
         if (searchStudent) {
             const query = searchStudent.toLowerCase();
-            classStudents = classStudents.filter(s =>
-                s.name.toLowerCase().includes(query) ||
-                s.registration.toLowerCase().includes(query)
-            );
+            classStudents = classStudents.filter(s => {
+                const name = String(s.name || '').toLowerCase();
+                const registration = String(s.registration || '').toLowerCase();
+                return name.includes(query) || registration.includes(query);
+            });
         }
 
         return classStudents;
