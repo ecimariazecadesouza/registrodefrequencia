@@ -133,16 +133,17 @@ export default function StudentManager() {
 
         // Group by date
         const grouped = studentRecords.reduce((acc, curr) => {
-            if (!acc[curr.date]) {
-                acc[curr.date] = {
-                    date: curr.date,
+            const dateOnly = curr.date.substring(0, 10);
+            if (!acc[dateOnly]) {
+                acc[dateOnly] = {
+                    date: dateOnly,
                     lessons: 0,
                     status: curr.status,
                     records: []
                 };
             }
-            acc[curr.date].lessons++;
-            acc[curr.date].records.push(curr);
+            acc[dateOnly].lessons++;
+            acc[dateOnly].records.push(curr);
             return acc;
         }, {} as Record<string, any>);
 
