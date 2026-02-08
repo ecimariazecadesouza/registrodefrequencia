@@ -464,22 +464,25 @@ export default function StudentManager() {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                                                 {entry.records.map((r: any, idx: number) => (
-                                                    <span key={idx} style={{
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        borderRadius: '4px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 700,
-                                                        color: 'white',
-                                                        background: r.status === 'P' ? 'var(--color-success)' :
-                                                            r.status === 'F' ? 'var(--color-danger)' :
-                                                                r.status === 'J' ? 'var(--color-warning)' : 'var(--color-neutral)'
-                                                    }}>
+                                                    <span key={idx}
+                                                        title={r.subject ? `${idx + 1}ª Aula: ${r.subject}` : `${idx + 1}ª Aula`}
+                                                        style={{
+                                                            width: '24px',
+                                                            height: '24px',
+                                                            borderRadius: '4px',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 700,
+                                                            color: 'white',
+                                                            cursor: 'help',
+                                                            background: r.status === 'P' ? 'var(--color-success)' :
+                                                                r.status === 'F' ? 'var(--color-danger)' :
+                                                                    r.status === 'J' ? 'var(--color-warning)' : 'var(--color-neutral)'
+                                                        }}>
                                                         {r.status}
                                                     </span>
                                                 ))}

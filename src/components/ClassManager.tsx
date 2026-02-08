@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Clock } from 'lucide-react';
 import type { Class } from '../types';
 import { saveClass, deleteClass, getStudentsByClass } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
@@ -9,6 +9,9 @@ export default function ClassManager() {
     const { classes, refreshData } = useData();
     const [showModal, setShowModal] = useState(false);
     const [editingClass, setEditingClass] = useState<Class | null>(null);
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [selectedClassForSchedule, setSelectedClassForSchedule] = useState<Class | null>(null);
+    const [scheduleData, setScheduleData] = useState<Record<string, string[]>>({});
     const [formData, setFormData] = useState({
         name: '',
         year: new Date().getFullYear().toString(),
@@ -50,6 +53,27 @@ export default function ClassManager() {
         }
     };
 
+    const handleOpenSchedule = (classItem: Class) => {
+        const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+        const initialSchedule: Record<string, string[]> = {};
+        days.forEach(day => {
+            initialSchedule[day] = classItem.schedule?.[day] || Array(9).fill('');
+        });
+        setScheduleData(initialSchedule);
+        setSelectedClassForSchedule(classItem);
+        setShowScheduleModal(true);
+    };
+
+    const handleSaveSchedule = () => {
+        if (!selectedClassForSchedule) return;
+        const updatedClass = { ...selectedClassForSchedule, schedule: scheduleData };
+        saveClass(updatedClass);
+        refreshData();
+        setShowScheduleModal(false);
+        setSelectedClassForSchedule(null);
+        triggerCloudSync();
+    };
+
     const closeModal = () => {
         setShowModal(false);
         setEditingClass(null);
@@ -88,6 +112,13 @@ export default function ClassManager() {
                                         onClick={() => handleEdit(classItem)}
                                     >
                                         <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-outline"
+                                        onClick={() => handleOpenSchedule(classItem)}
+                                        title="Gerenciar Horário"
+                                    >
+                                        <Clock size={16} />
                                     </button>
                                     <button
                                         className="btn btn-sm btn-danger"
@@ -182,6 +213,66 @@ export default function ClassManager() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {showScheduleModal && selectedClassForSchedule && (
+                <div className="modal-overlay" onClick={() => setShowScheduleModal(false)}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Horário Semanal: {selectedClassForSchedule.name}</h2>
+                            <button className="modal-close" onClick={() => setShowScheduleModal(false)}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+                            <table className="table" style={{ minWidth: '800px' }}>
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '80px' }}>Aula</th>
+                                        {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'].map(day => (
+                                            <th key={day}>{day}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Array.from({ length: 9 }).map((_, slotIdx) => (
+                                        <tr key={slotIdx}>
+                                            <td style={{ fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                                                {slotIdx + 1}ª Aula
+                                            </td>
+                                            {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'].map(day => (
+                                                <td key={day} style={{ padding: '4px' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        style={{ padding: '0.4rem', fontSize: '0.85rem' }}
+                                                        placeholder="Matéria..."
+                                                        value={scheduleData[day]?.[slotIdx] || ''}
+                                                        onChange={(e) => {
+                                                            const newSched = { ...scheduleData };
+                                                            if (!newSched[day]) newSched[day] = Array(9).fill('');
+                                                            newSched[day][slotIdx] = e.target.value;
+                                                            setScheduleData(newSched);
+                                                        }}
+                                                    />
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="btn btn-outline" onClick={() => setShowScheduleModal(false)}>
+                                Cancelar
+                            </button>
+                            <button className="btn btn-primary" onClick={handleSaveSchedule}>
+                                Salvar Horário
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

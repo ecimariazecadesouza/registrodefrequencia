@@ -9,6 +9,7 @@ export interface Class {
   year: string;
   period: string; // Manhã, Tarde, Noite, Integral
   lessonsPerDay?: number; // Agora configurável na tela de frequência
+  schedule?: Record<string, string[]>; // { 'Segunda': ['Mat', 'Port', ...], 'Terça': [...] }
   createdAt: string;
 }
 
@@ -28,6 +29,7 @@ export interface AttendanceRecord {
   date: string; // YYYY-MM-DD format
   lessonIndex: number; // Novidade: 0, 1, 2 para suportar múltiplas aulas
   status: AttendanceStatus;
+  subject?: string; // Snapshot da disciplina no momento do registro
   notes?: string;
 }
 

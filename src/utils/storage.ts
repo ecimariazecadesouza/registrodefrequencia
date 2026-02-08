@@ -120,10 +120,16 @@ export const saveAttendance = (attendance: AttendanceRecord): void => {
             a.date.substring(0, 10) === attendance.date.substring(0, 10) &&
             a.lessonIndex === attendance.lessonIndex
     );
+    const rowData = {
+        ...attendance,
+        date: attendance.date.substring(0, 10), // Ensure always YYYY-MM-DD
+        subject: attendance.subject || ''
+    };
+
     if (index >= 0) {
-        records[index] = attendance;
+        records[index] = rowData;
     } else {
-        records.push(attendance);
+        records.push(rowData);
     }
     saveToStorage(STORAGE_KEYS.ATTENDANCE, records);
 };

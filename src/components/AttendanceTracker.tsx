@@ -119,6 +119,7 @@ export default function AttendanceTracker() {
                     date: selectedDate,
                     lessonIndex,
                     status,
+                    subject: getSubjectForLesson(lessonIndex)
                 });
             });
 
@@ -149,6 +150,19 @@ export default function AttendanceTracker() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const getSubjectForLesson = (lessonIndex: number) => {
+        if (!selectedClassId) return '';
+        const classItem = classes.find(c => String(c.id) === String(selectedClassId));
+        if (!classItem || !classItem.schedule) return '';
+
+        const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        // Fix timezone offset for day of week
+        const d = new Date(selectedDate + 'T12:00:00');
+        const dayName = days[d.getDay()];
+
+        return classItem.schedule[dayName]?.[lessonIndex] || '';
     };
 
     const markAllAsPresent = () => {
@@ -455,6 +469,11 @@ export default function AttendanceTracker() {
                                 <h2 className="card-title">Lista de Protagonistas</h2>
                                 <div style={{ color: 'var(--color-text-muted)' }}>
                                     {students.length} protagonista{students.length !== 1 ? 's' : ''} • {lessonsPerDay} aula{lessonsPerDay !== 1 ? 's' : ''}/dia
+                                    {selectedDate && (
+                                        <span style={{ marginLeft: '0.5rem', opacity: 0.8 }}>
+                                            • {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date(selectedDate + 'T12:00:00').getDay()]}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
@@ -518,8 +537,12 @@ export default function AttendanceTracker() {
                                         {Array.from({ length: lessonsPerDay }).map((_, idx) => (
                                             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                 {lessonsPerDay > 1 && (
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', minWidth: '45px' }}>
-                                                        Aula {idx + 1}
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', minWidth: '120px' }}>
+                                                        {idx + 1}ª Aula {getSubjectForLesson(idx) && (
+                                                            <span style={{ color: 'var(--color-primary)', display: 'block' }}>
+                                                                {getSubjectForLesson(idx)}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 )}
                                                 <div className="attendance-buttons">
