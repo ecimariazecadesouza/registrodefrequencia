@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { Plus, Edit2, Trash2, X, Filter } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Edit2, Trash2, X, Filter, History } from 'lucide-react';
 import type { Student, StudentSituation } from '../types';
 import { saveStudent, deleteStudent } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
 import { useData } from '../context/DataContext';
 
 export default function StudentManager() {
-    const { students, classes, refreshData } = useData();
+    const { students, classes, attendance, refreshData } = useData();
     const [showModal, setShowModal] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [filterClassId, setFilterClassId] = useState<string>('all');
     const [filterSituation, setFilterSituation] = useState<StudentSituation | 'all'>('Cursando');
     const [isBatchMode, setIsBatchMode] = useState(false);
@@ -79,6 +81,11 @@ export default function StudentManager() {
         setShowModal(true);
     };
 
+    const handleShowHistory = (student: Student) => {
+        setHistoryStudent(student);
+        setShowHistoryModal(true);
+    };
+
     const handleDelete = (studentId: string) => {
         if (confirm('Tem certeza que deseja excluir este protagonista? Todos os registros de frequência serão removidos.')) {
             deleteStudent(studentId);
@@ -100,6 +107,11 @@ export default function StudentManager() {
         setIsBatchMode(false);
     };
 
+    const closeHistoryModal = () => {
+        setShowHistoryModal(false);
+        setHistoryStudent(null);
+    };
+
     const getClassName = (classId: string) => {
         const classItem = classes.find(c => String(c.id) === String(classId));
         return classItem?.name || 'Sem turma';
@@ -113,6 +125,29 @@ export default function StudentManager() {
             .toUpperCase()
             .slice(0, 2);
     };
+
+    const studentHistoryData = useMemo(() => {
+        if (!historyStudent) return [];
+
+        const studentRecords = attendance.filter(a => String(a.studentId) === String(historyStudent.id));
+
+        // Group by date
+        const grouped = studentRecords.reduce((acc, curr) => {
+            if (!acc[curr.date]) {
+                acc[curr.date] = {
+                    date: curr.date,
+                    lessons: 0,
+                    status: curr.status,
+                    records: []
+                };
+            }
+            acc[curr.date].lessons++;
+            acc[curr.date].records.push(curr);
+            return acc;
+        }, {} as Record<string, any>);
+
+        return Object.values(grouped).sort((a: any, b: any) => b.date.localeCompare(a.date));
+    }, [historyStudent, attendance]);
 
     return (
         <div>
@@ -204,6 +239,13 @@ export default function StudentManager() {
                             >
                                 <Edit2 size={16} />
                                 Editar
+                            </button>
+                            <button
+                                className="btn btn-sm btn-outline"
+                                onClick={() => handleShowHistory(student)}
+                                title="Ver Histórico"
+                            >
+                                <History size={16} />
                             </button>
                             <button
                                 className="btn btn-sm btn-danger"
@@ -351,6 +393,112 @@ export default function StudentManager() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {showHistoryModal && historyStudent && (
+                <div className="modal-overlay" onClick={closeHistoryModal}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">
+                                Histórico de Frequência
+                            </h2>
+                            <button className="modal-close" onClick={closeHistoryModal}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div className="student-avatar" style={{ width: '48px', height: '48px' }}>
+                                    {getInitials(historyStudent.name)}
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0 }}>{historyStudent.name}</h3>
+                                    <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+                                        RA: {historyStudent.registration} • {getClassName(historyStudent.classId)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                            {studentHistoryData.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    {(studentHistoryData as any[]).map((entry) => (
+                                        <div key={entry.date} style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            padding: '1rem',
+                                            background: 'var(--color-bg-secondary)',
+                                            borderRadius: 'var(--radius-md)',
+                                            border: '1px solid var(--color-border)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <div style={{
+                                                    width: '40px',
+                                                    height: '40px',
+                                                    borderRadius: '8px',
+                                                    background: 'var(--color-bg-primary)',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    lineHeight: 1
+                                                }}>
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                                                        {entry.date.split('-')[1]}
+                                                    </span>
+                                                    <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                                                        {entry.date.split('-')[2]}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 600 }}>
+                                                        {entry.date.split('-').reverse().join('/')}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                        {entry.lessons} aula{entry.lessons !== 1 ? 's' : ''} no dia
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                {entry.records.map((r: any, idx: number) => (
+                                                    <span key={idx} style={{
+                                                        width: '24px',
+                                                        height: '24px',
+                                                        borderRadius: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 700,
+                                                        color: 'white',
+                                                        background: r.status === 'P' ? 'var(--color-success)' :
+                                                            r.status === 'F' ? 'var(--color-danger)' :
+                                                                r.status === 'J' ? 'var(--color-warning)' : 'var(--color-neutral)'
+                                                    }}>
+                                                        {r.status}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-muted)' }}>
+                                    <History size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                                    <p>Nenhum registro de frequência encontrado para este protagonista.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="modal-footer" style={{ marginTop: '1.5rem' }}>
+                            <button className="btn btn-primary" onClick={closeHistoryModal} style={{ width: '100%' }}>
+                                Fechar Histórico
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
