@@ -50,7 +50,7 @@ export default function AttendanceTracker() {
 
     // Check for holiday
     useEffect(() => {
-        const holiday = holidays.find(h => h.date === selectedDate);
+        const holiday = holidays.find(h => h.date.substring(0, 10) === selectedDate.substring(0, 10));
         setCurrentHoliday(holiday ? { description: holiday.description, type: holiday.type } : null);
     }, [selectedDate, holidays]);
 

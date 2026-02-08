@@ -93,7 +93,8 @@ export const getAttendance = (): AttendanceRecord[] =>
     getFromStorage<AttendanceRecord>(STORAGE_KEYS.ATTENDANCE);
 
 export const getAttendanceByDate = (date: string): AttendanceRecord[] => {
-    return getAttendance().filter(a => a.date === date);
+    const searchDate = date.substring(0, 10);
+    return getAttendance().filter(a => a.date.substring(0, 10) === searchDate);
 };
 
 export const getAttendanceByStudent = (studentId: string): AttendanceRecord[] => {
@@ -116,7 +117,7 @@ export const saveAttendance = (attendance: AttendanceRecord): void => {
     const records = getAttendance();
     const index = records.findIndex(
         a => String(a.studentId) === String(attendance.studentId) &&
-            a.date === attendance.date &&
+            a.date.substring(0, 10) === attendance.date.substring(0, 10) &&
             a.lessonIndex === attendance.lessonIndex
     );
     if (index >= 0) {
@@ -130,7 +131,7 @@ export const saveAttendance = (attendance: AttendanceRecord): void => {
 export const deleteAttendance = (studentId: string, date: string, lessonIndex?: number): void => {
     const records = getAttendance().filter(
         a => !(String(a.studentId) === String(studentId) &&
-            a.date === date &&
+            a.date.substring(0, 10) === date.substring(0, 10) &&
             (lessonIndex === undefined || a.lessonIndex === lessonIndex))
     );
     saveToStorage(STORAGE_KEYS.ATTENDANCE, records);
@@ -154,10 +155,12 @@ export const calculateStudentStats = (
     let records = getAttendanceByStudent(studentId);
 
     if (startDate) {
-        records = records.filter(r => r.date >= startDate);
+        const start = startDate.substring(0, 10);
+        records = records.filter(r => r.date.substring(0, 10) >= start);
     }
     if (endDate) {
-        records = records.filter(r => r.date <= endDate);
+        const end = endDate.substring(0, 10);
+        records = records.filter(r => r.date.substring(0, 10) <= end);
     }
 
     const stats: AttendanceStats = {
