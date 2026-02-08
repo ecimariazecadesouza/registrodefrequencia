@@ -135,7 +135,17 @@ export default function AttendanceTracker() {
             setMessage({ type: 'success', text: 'Chamada salva com sucesso na nuvem!' });
             setTimeout(() => setMessage(null), 3000);
         } catch (error) {
-            setMessage({ type: 'error', text: 'Erro ao salvar chamada: ' + String(error) });
+            const isOffline = String(error).includes('Offline');
+            if (isOffline) {
+                setHasUnsavedChanges(false);
+                setMessage({
+                    type: 'info',
+                    text: 'Sem conexão. Chamada salva localmente e será sincronizada automaticamente assim que houver internet.'
+                });
+                refreshData();
+            } else {
+                setMessage({ type: 'error', text: 'Erro ao salvar chamada: ' + String(error) });
+            }
         } finally {
             setIsSaving(false);
         }
@@ -261,6 +271,20 @@ export default function AttendanceTracker() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Aulas por Dia</label>
+                        <select
+                            className="form-select"
+                            value={lessonsPerDay}
+                            onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
+                            disabled={!selectedClassId}
+                        >
+                            <option value={1}>1 Aula</option>
+                            <option value={2}>2 Aulas</option>
+                            <option value={3}>3 Aulas</option>
+                        </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
                         <label className="form-label">Data</label>
                         <div style={{ position: 'relative' }}>
                             <input
@@ -281,20 +305,6 @@ export default function AttendanceTracker() {
                                 }}
                             />
                         </div>
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                        <label className="form-label">Aulas por Dia</label>
-                        <select
-                            className="form-select"
-                            value={lessonsPerDay}
-                            onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
-                            disabled={!selectedClassId}
-                        >
-                            <option value={1}>1 Aula</option>
-                            <option value={2}>2 Aulas</option>
-                            <option value={3}>3 Aulas</option>
-                        </select>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>

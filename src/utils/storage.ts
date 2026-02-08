@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
     ATTENDANCE: 'school_attendance',
     BIMESTERS: 'school_bimesters',
     HOLIDAYS: 'school_holidays',
+    SYNC_QUEUE: 'school_sync_queue',
 };
 
 // Generic storage functions
@@ -281,4 +282,22 @@ export const saveHoliday = (holiday: any): void => {
 export const deleteHoliday = (holidayId: string): void => {
     const holidays = getHolidays().filter(h => h.id !== holidayId);
     saveToStorage(STORAGE_KEYS.HOLIDAYS, holidays);
+};
+
+// Sync Queue
+export const getSyncQueue = (): AttendanceRecord[] => getFromStorage<AttendanceRecord>(STORAGE_KEYS.SYNC_QUEUE);
+
+export const addToSyncQueue = (records: AttendanceRecord[]): void => {
+    const queue = getSyncQueue();
+    // Add only if not already in queue (check by unique ID)
+    records.forEach(newRecord => {
+        if (!queue.some(q => q.id === newRecord.id)) {
+            queue.push(newRecord);
+        }
+    });
+    saveToStorage(STORAGE_KEYS.SYNC_QUEUE, queue);
+};
+
+export const clearSyncQueue = (): void => {
+    saveToStorage(STORAGE_KEYS.SYNC_QUEUE, []);
 };

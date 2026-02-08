@@ -56,6 +56,10 @@ export const saveAttendanceToCloud = async (record: AttendanceRecord): Promise<v
 
 export const saveBatchAttendanceToCloud = async (records: AttendanceRecord[]): Promise<void> => {
     try {
+        if (!navigator.onLine) {
+            throw new Error('Offline');
+        }
+
         await fetch(API_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -67,8 +71,45 @@ export const saveBatchAttendanceToCloud = async (records: AttendanceRecord[]): P
                 records
             }),
         });
+
+        // With no-cors, we can't check response.ok, so we assume success if no exception
     } catch (error) {
-        console.error('Batch Attendance Sync Error:', error);
+        console.warn('Batch Attendance Sync Error (Offline?):', error);
+        // Save to sync queue if failed
+        const { addToSyncQueue } = await import('./storage');
+        addToSyncQueue(records);
+        throw error; // Re-throw so UI can inform user
+    }
+};
+
+/**
+ * Processes any pending records in the sync queue.
+ */
+export const processSyncQueue = async (): Promise<void> => {
+    if (!navigator.onLine) return;
+
+    const { getSyncQueue, clearSyncQueue } = await import('./storage');
+    const queue = getSyncQueue();
+
+    if (queue.length === 0) return;
+
+    console.log(`Processing sync queue with ${queue.length} items...`);
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify({
+                action: 'saveBatchAttendance',
+                records: queue
+            }),
+        });
+        clearSyncQueue();
+        console.log('Sync queue processed successfully');
+    } catch (error) {
+        console.error('Failed to process sync queue:', error);
     }
 };
 
@@ -78,6 +119,8 @@ export const saveBatchAttendanceToCloud = async (records: AttendanceRecord[]): P
  */
 export const triggerCloudSync = async () => {
     const { getClasses, getStudents, getAttendance, getBimesters, getHolidays } = await import('./storage');
+    if (!navigator.onLine) return;
+
     try {
         const data = {
             classes: getClasses(),

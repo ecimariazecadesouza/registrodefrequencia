@@ -16,13 +16,37 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { hydrateFromCloud } = useData();
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOnline(true);
+      const { processSyncQueue } = await import('./utils/api');
+      await processSyncQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     const initApp = async () => {
       try {
         initializeSampleData();
-        const { fetchCloudData } = await import('./utils/api');
+        const { fetchCloudData, processSyncQueue } = await import('./utils/api');
+
+        // Initial sync attempt
+        if (navigator.onLine) {
+          await processSyncQueue();
+        }
+
         try {
           const cloudData = await fetchCloudData();
           if (cloudData && cloudData.classes && cloudData.classes.length > 0) {
@@ -88,6 +112,13 @@ function AppContent() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="logo" style={{ width: '32px', height: '32px', fontSize: '1rem' }}>📚</div>
           <span style={{ fontWeight: '700', fontSize: '1rem' }}>Sistema MZS</span>
+          <div style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: isOnline ? 'var(--color-success)' : 'var(--color-danger)',
+            marginLeft: '0.5rem'
+          }} title={isOnline ? 'Online' : 'Offline'} />
         </div>
         <button className="menu-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
           {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}

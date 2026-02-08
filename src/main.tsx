@@ -1,7 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { registerSW } from 'virtual:pwa-register'
 import './App.css'
 import App from './App'
+
+// Register service worker for PWA
+registerSW({ immediate: true })
 
 // Global error listener to help debug white screen issues
 window.onerror = function (message, source, lineno, colno, error) {
