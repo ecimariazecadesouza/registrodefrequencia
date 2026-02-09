@@ -17,6 +17,7 @@ export default function AttendanceTracker() {
     const [filterSituation, setFilterSituation] = useState<StudentSituation | 'Todas'>('Cursando');
     // Map key: studentId-lessonIndex value: status
     const [attendance, setAttendance] = useState<Map<string, AttendanceStatus>>(new Map());
+    const [classNotes, setClassNotes] = useState<string>('');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
@@ -89,6 +90,15 @@ export default function AttendanceTracker() {
             }
 
             setAttendance(attendanceMap);
+
+            // Load notes from existing records if any
+            if (existingAttendance.length > 0) {
+                const firstRecord = existingAttendance.find(r => students.some(s => s.id === r.studentId));
+                setClassNotes(firstRecord?.notes || '');
+            } else {
+                setClassNotes('');
+            }
+
             setHasUnsavedChanges(false);
         } else {
             setAttendance(new Map());
@@ -119,7 +129,8 @@ export default function AttendanceTracker() {
                     date: selectedDate,
                     lessonIndex,
                     status,
-                    subject: getSubjectForLesson(lessonIndex)
+                    subject: getSubjectForLesson(lessonIndex),
+                    notes: classNotes
                 });
             });
 
@@ -361,6 +372,26 @@ export default function AttendanceTracker() {
                         </div>
                     </div>
                 </div>
+
+                {selectedClassId && (
+                    <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1.5rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Pencil size={16} /> Conteúdo da Aula / Anotações
+                            </label>
+                            <textarea
+                                className="form-input"
+                                placeholder="Descreva o que foi trabalhado nesta aula..."
+                                value={classNotes}
+                                onChange={(e) => {
+                                    setClassNotes(e.target.value);
+                                    setHasUnsavedChanges(true);
+                                }}
+                                style={{ minHeight: '80px', resize: 'vertical' }}
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {selectedClassId && students.length > 0 && (
