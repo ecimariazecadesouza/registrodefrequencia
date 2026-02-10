@@ -82,10 +82,11 @@ function getSheetData(ss, sheetName) {
         const obj = {};
         headers.forEach((header, i) => {
             let val = row[i];
-            // Normaliza datas
+            // Normaliza datas (apenas strings que são realmente datas ISO)
             if (val instanceof Date) {
                 val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-            } else if (typeof val === 'string' && val.includes('T') && val.length > 10) {
+            } else if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+                // Só corta se for formato ISO: YYYY-MM-DDT...
                 val = val.substring(0, 10);
             }
 
