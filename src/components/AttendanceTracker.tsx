@@ -169,8 +169,9 @@ export default function AttendanceTracker() {
         if (!classItem || !classItem.schedule) return '';
 
         const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        // Use a more robust way to get local weekday to avoid timezone shifts
-        const [year, month, day] = selectedDate.split('-').map(Number);
+        // Normaliza a data para YYYY-MM-DD caso venha no formato ISO longo
+        const cleanDate = selectedDate.substring(0, 10);
+        const [year, month, day] = cleanDate.split('-').map(Number);
         const d = new Date(year, month - 1, day);
         const dayName = days[d.getDay()];
 

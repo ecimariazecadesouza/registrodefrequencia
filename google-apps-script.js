@@ -1,6 +1,6 @@
 /**
  * SISTEMA DE FREQUÊNCIA ESCOLAR - GOOGLE APPS SCRIPT
- * Versão: 2.1 (Correção de Duplicação e Preservação de Dados)
+ * Versão: 2.2 (Correção Definitiva de Duplicação e Datas)
  */
 
 const SPREADSHEET_ID = ''; // Deixe vazio para usar a planilha atual
@@ -47,7 +47,6 @@ function doPost(e) {
                 if (data.students) updateSheet(ss, 'Protagonistas', data.students);
                 if (data.bimesters) updateSheet(ss, 'Bimestres', data.bimesters);
                 if (data.holidays) updateSheet(ss, 'Feriados', data.holidays);
-                // Evita duplicação limpando a aba antes de salvar o lote completo do App
                 if (data.attendance) updateSheet(ss, 'Frequencia', data.attendance);
                 return createResponse({ success: true, message: 'Sincronização completa realizada' });
 
@@ -79,12 +78,14 @@ function getSheetData(ss, sheetName) {
         const obj = {};
         headers.forEach((header, i) => {
             let val = row[i];
-            // Tratamento consistente para datas
+            // Normaliza datas vindas da planilha para formato curto YYYY-MM-DD
             if (val instanceof Date) {
                 val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+            } else if (typeof val === 'string' && val.includes('T') && val.length > 10) {
+                // Limpa strings ISO residuais
+                val = val.substring(0, 10);
             }
 
-            // Converte strings JSON de volta para objeto (ex: schedule)
             if (header === 'schedule' && typeof val === 'string' && val.startsWith('{')) {
                 try { val = JSON.parse(val); } catch (e) { }
             }
@@ -109,8 +110,11 @@ function updateSheet(ss, sheetName, data) {
 
     data.forEach(item => {
         values.push(headers.map(header => {
-            const val = item[header];
-            // Salva objetos como strings JSON
+            let val = item[header];
+            // Garante que datas enviadas pelo App sejam salvas apenas a parte YYYY-MM-DD
+            if (header === 'date' && typeof val === 'string') {
+                val = val.substring(0, 10);
+            }
             return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val === undefined ? '' : val);
         }));
     });
@@ -134,14 +138,20 @@ function saveRecord(ss, sheetName, record, keys) {
 
     const keyIndices = keys.map(k => headers.indexOf(k));
 
-    // Procura linha existente tratando formatos de data
+    // Procura linha existente tratando formatos de data (compara apenas os primeiros 10 caracteres)
     const rowIndex = data.findIndex(row =>
         keys.every((k, i) => {
             let cellVal = row[keyIndices[i]];
             if (cellVal instanceof Date) {
                 cellVal = Utilities.formatDate(cellVal, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
             }
-            return String(cellVal) === String(record[k]);
+            let recordVal = String(record[k]);
+
+            if (k === 'date') {
+                return String(cellVal).substring(0, 10) === recordVal.substring(0, 10);
+            }
+
+            return String(cellVal) === recordVal;
         })
     );
 
@@ -151,6 +161,7 @@ function saveRecord(ss, sheetName, record, keys) {
             const colIdx = headers.indexOf(k);
             if (colIdx >= 0) {
                 let val = record[k];
+                if (k === 'date' && typeof val === 'string') val = val.substring(0, 10);
                 if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
                 sheet.getRange(rowNum, colIdx + 1).setValue(val);
             }
@@ -158,6 +169,7 @@ function saveRecord(ss, sheetName, record, keys) {
     } else {
         sheet.appendRow(headers.map(h => {
             let val = record[h];
+            if (h === 'date' && typeof val === 'string') val = val.substring(0, 10);
             if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
             return val !== undefined ? val : '';
         }));
@@ -189,5 +201,5 @@ function checkSetup(ss) {
 function setup() {
     const ss = getSS();
     checkSetup(ss);
-    Logger.log('Configuração v2.1 concluída!');
+    Logger.log('Configuração v2.2 concluída!');
 }

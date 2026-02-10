@@ -61,8 +61,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setStudents(sortedStudents);
         }
         if (data.attendance) {
-            saveToStorage(STORAGE_KEYS.ATTENDANCE, data.attendance);
-            setAttendance(data.attendance);
+            // Normaliza datas ISO para formato curto
+            const normalizedAttendance = data.attendance.map((r: AttendanceRecord) => ({
+                ...r,
+                date: r.date.substring(0, 10)
+            }));
+            saveToStorage(STORAGE_KEYS.ATTENDANCE, normalizedAttendance);
+            setAttendance(normalizedAttendance);
         }
         if (data.bimesters) {
             saveToStorage(STORAGE_KEYS.BIMESTERS, data.bimesters);
