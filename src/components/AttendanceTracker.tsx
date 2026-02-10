@@ -160,9 +160,7 @@ export default function AttendanceTracker() {
                     date: selectedDate,
                     lessonIndex,
                     status,
-                    status,
-                    subject: manualSubject || getSubjectForLesson(lessonIndex), // Use manual subject if present
-                    notes: classNotes
+                    subject: manualSubject || getSubjectForLesson(lessonIndex),
                     notes: classNotes
                 });
             });
