@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, Filter } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Filter, PieChart as PieChartIcon, BarChart3, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import {
+    PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+    BarChart, Bar, XAxis, YAxis, CartesianGrid,
+    LineChart, Line
+} from 'recharts';
 import type { Bimester } from '../types';
 
 import {
@@ -80,6 +85,92 @@ export default function Reports() {
             .slice(0, 2);
     };
 
+    // Chart colors matching design system
+    const COLORS = {
+        excelente: '#10b981', // var(--color-success)
+        regular: '#f59e0b',   // var(--color-warning)
+        critico: '#ef4444'    // var(--color-danger)
+    };
+
+    // Chart Data 1: Frequency Distribution (Pie Chart)
+    const frequencyDistribution = useMemo(() => {
+        const distribution = {
+            excelente: 0,
+            regular: 0,
+            critico: 0
+        };
+
+        reportData.forEach(({ stats }) => {
+            const rate = stats.attendanceRate;
+            if (rate >= 90) distribution.excelente++;
+            else if (rate >= 75) distribution.regular++;
+            else distribution.critico++;
+        });
+
+        return [
+            { name: 'Excelente (≥90%)', value: distribution.excelente, color: COLORS.excelente },
+            { name: 'Regular (75-89%)', value: distribution.regular, color: COLORS.regular },
+            { name: 'Crítico (<75%)', value: distribution.critico, color: COLORS.critico }
+        ].filter(item => item.value > 0);
+    }, [reportData]);
+
+    // Chart Data 2: Class Summary (Bar Chart)
+    const classSummary = useMemo(() => {
+        const classMap = new Map<string, { total: number, sum: number, count: number }>();
+
+        reportData.forEach(({ className, stats }) => {
+            if (!classMap.has(className)) {
+                classMap.set(className, { total: 0, sum: 0, count: 0 });
+            }
+            const classData = classMap.get(className)!;
+            classData.sum += stats.attendanceRate;
+            classData.count++;
+        });
+
+        return Array.from(classMap.entries())
+            .map(([name, data]) => ({
+                name,
+                frequencia: parseFloat((data.sum / data.count).toFixed(1)),
+                alunos: data.count
+            }))
+            .sort((a, b) => b.frequencia - a.frequencia);
+    }, [reportData]);
+
+    // Chart Data 3: Bimester Trend (Line Chart)
+    const bimesterTrend = useMemo(() => {
+        if (selectedBimester > 0) return []; // Only show for "all year" view
+
+        return bimesters.map((bim) => {
+            let totalRate = 0;
+            let count = 0;
+
+            students.forEach(student => {
+                const stats = calculateStudentStats(student.id, bim.start, bim.end);
+                if (stats.totalDays > 0) {
+                    totalRate += stats.attendanceRate;
+                    count++;
+                }
+            });
+
+            return {
+                name: bim.name,
+                frequencia: count > 0 ? parseFloat((totalRate / count).toFixed(1)) : 0
+            };
+        });
+    }, [bimesters, students, selectedBimester]);
+
+    // Chart Data 4: Top 10 Students (Stacked Bar Chart)
+    const topStudentsData = useMemo(() => {
+        return reportData
+            .slice(0, 10)
+            .map(({ student, stats }) => ({
+                name: student.name.split(' ')[0] + ' ' + (student.name.split(' ').pop() || ''),
+                Presenças: stats.present,
+                Faltas: stats.absent,
+                Justificadas: stats.justified
+            }));
+    }, [reportData]);
+
     return (
         <div>
             <div className="page-header">
@@ -153,6 +244,173 @@ export default function Reports() {
                     </div>
                 </div>
             </div>
+
+            {reportData.length > 0 && (
+                <>
+                    {/* Charts Section */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        gap: '1.5rem',
+                        marginBottom: '2rem'
+                    }}>
+                        {/* Chart 1: Frequency Distribution */}
+                        {frequencyDistribution.length > 0 && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <PieChartIcon size={18} />
+                                        Distribuição de Frequência
+                                    </h3>
+                                </div>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <PieChart>
+                                        <Pie
+                                            data={frequencyDistribution}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(0)}%`}
+                                            outerRadius={80}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {frequencyDistribution.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--color-bg-primary)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-md)'
+                                            }}
+                                        />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {/* Chart 2: Class Summary */}
+                        {classSummary.length > 0 && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <BarChart3 size={18} />
+                                        Frequência Média por Turma
+                                    </h3>
+                                </div>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={classSummary}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                        <XAxis
+                                            dataKey="name"
+                                            tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+                                            angle={-45}
+                                            textAnchor="end"
+                                            height={80}
+                                        />
+                                        <YAxis
+                                            tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+                                            domain={[0, 100]}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--color-bg-primary)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-md)'
+                                            }}
+                                            formatter={(value) => value != null ? [`${Number(value).toFixed(1)}%`, 'Frequência'] : ['', '']}
+                                        />
+                                        <Bar
+                                            dataKey="frequencia"
+                                            fill="#6366f1"
+                                            radius={[8, 8, 0, 0]}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {/* Chart 3: Bimester Trend */}
+                        {bimesterTrend.length > 0 && selectedBimester === 0 && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <TrendingUpIcon size={18} />
+                                        Evolução ao Longo do Ano
+                                    </h3>
+                                </div>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <LineChart data={bimesterTrend}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                        <XAxis
+                                            dataKey="name"
+                                            tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+                                        />
+                                        <YAxis
+                                            tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }}
+                                            domain={[0, 100]}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--color-bg-primary)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-md)'
+                                            }}
+                                            formatter={(value) => value != null ? [`${Number(value).toFixed(1)}%`, 'Frequência Média'] : ['', '']}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="frequencia"
+                                            stroke="#10b981"
+                                            strokeWidth={3}
+                                            dot={{ fill: '#10b981', r: 5 }}
+                                            activeDot={{ r: 7 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+
+                        {/* Chart 4: Top 10 Students */}
+                        {topStudentsData.length > 0 && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <TrendingUp size={18} />
+                                        Top 10 Protagonistas
+                                    </h3>
+                                </div>
+                                <ResponsiveContainer width="100%" height={280}>
+                                    <BarChart data={topStudentsData} layout="horizontal">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                                        <XAxis type="number" tick={{ fill: 'var(--color-text-secondary)', fontSize: 12 }} />
+                                        <YAxis
+                                            type="category"
+                                            dataKey="name"
+                                            tick={{ fill: 'var(--color-text-secondary)', fontSize: 10 }}
+                                            width={100}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'var(--color-bg-primary)',
+                                                border: '1px solid var(--color-border)',
+                                                borderRadius: 'var(--radius-md)'
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="Presenças" stackId="a" fill={COLORS.excelente} />
+                                        <Bar dataKey="Justificadas" stackId="a" fill={COLORS.regular} />
+                                        <Bar dataKey="Faltas" stackId="a" fill={COLORS.critico} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
 
             {reportData.length > 0 ? (
                 <div className="card">
