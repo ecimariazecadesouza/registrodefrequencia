@@ -693,48 +693,108 @@ export default function AttendanceTracker() {
                             </thead>
                             <tbody>
                                 {historySummary.length > 0 ? (
-                                    historySummary.map((item, index) => (
-                                        <tr key={index}>
-                                            <td style={{ paddingRight: '2rem' }}>{item.date.substring(0, 10).split('-').reverse().join('/')}</td>
-                                            <td style={{ paddingRight: '2rem' }}>{item.bimester}</td>
-                                            <td style={{ paddingRight: '2rem' }}>{item.lessons} Tempo(s)</td>
-                                            <td style={{ paddingRight: '2rem' }}>
-                                                <span style={{
-                                                    color: item.presenceRate >= 75 ? 'var(--color-success)' : 'var(--color-danger)',
-                                                    fontWeight: '600'
-                                                }}>
-                                                    {item.presenceRate.toFixed(2)}%
-                                                </span>
-                                            </td>
-                                            <td style={{ textAlign: 'right' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                                                    <button
-                                                        className="btn-icon"
-                                                        title="Ver Detalhes"
-                                                        onClick={() => {
-                                                            setSelectedDate(item.date);
-                                                            setLessonsPerDay(item.lessons);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                        }}
-                                                    >
-                                                        <Search size={18} />
-                                                    </button>
-                                                    <button
-                                                        className="btn-primary"
-                                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                                        onClick={() => {
-                                                            setSelectedDate(item.date);
-                                                            setLessonsPerDay(item.lessons);
-                                                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                                                        }}
-                                                    >
-                                                        <Pencil size={14} style={{ marginRight: '4px' }} />
-                                                        Editar
-                                                    </button>
+                                    <div className="attendance-list" style={{ overflowX: 'auto' }}>
+                                        {/* Header Row */}
+                                        <div className="attendance-row header" style={{ minWidth: '800px', marginBottom: '0.5rem' }}>
+                                            <div className="student-info" style={{ width: '250px' }}>Protagonista</div>
+                                            <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
+                                                {Array.from({ length: 15 }).map((_, i) => {
+                                                    // Determine if we should show this lesson
+                                                    // Show if:
+                                                    // 1. It is within the selected "Aulas por Dia" range (mandatory rows)
+                                                    // 2. OR it has a subject configured in the schedule
+                                                    // 3. OR it has attendance data recorded
+                                                    const hasSubject = !!getSubjectForLesson(i);
+                                                    const hasAttendance = attendance.has(`${students[0]?.id}-${i}`); // Check first student as proxy or check any
+                                                    const isVisible = i < lessonsPerDay || hasSubject || recordExists;
+
+                                                    // Specific check for this column index across all records would be expensive, 
+                                                    // so we trust: Range OR Subject OR (RecordExists AND it was part of that record batch?)
+                                                    // Actually, stick to: Range OR Subject. 
+                                                    // If RecordExists (saved data), we probably want to show what was saved using Smart Logic too.
+
+                                                    // Refined Visibility Logic:
+                                                    // Show if index < lessonsPerDay (User force-show)
+                                                    // Show if hasSubject (Content exists)
+                                                    // Show if we loaded data that definitely goes up to this max index? 
+                                                    // Let's rely on Subject + User Selection primarily.
+
+                                                    if (!isVisible && !hasSubject) return null;
+
+                                                    return (
+                                                        <div key={i} style={{
+                                                            flex: 1,
+                                                            minWidth: '60px',
+                                                            textAlign: 'center',
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 600,
+                                                            color: 'var(--color-text-secondary)'
+                                                        }}>
+                                                            {i + 1}ª Aula
+                                                            {getSubjectForLesson(i) && (
+                                                                <div style={{
+                                                                    fontSize: '0.65rem',
+                                                                    color: 'var(--color-primary)',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}>
+                                                                    {getSubjectForLesson(i)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {students.map(student => (
+                                            <div key={student.id} className="attendance-row" style={{ minWidth: '800px' }}>
+                                                <div className="student-info" style={{ width: '250px' }}>
+                                                    <div className="student-avatar" style={{
+                                                        backgroundColor: student.situation === 'Cursando' ? 'var(--color-primary)' : 'var(--color-text-muted)'
+                                                    }}>
+                                                        {getInitials(student.name)}
+                                                    </div>
+                                                    <div style={{ overflow: 'hidden' }}>
+                                                        <div className="student-name" title={student.name}>{student.name}</div>
+                                                        <div className="student-meta">
+                                                            <span className={`situation-badge ${student.situation.toLowerCase()}`}>
+                                                                {student.situation}
+                                                            </span>
+                                                            <span className="student-ra">RA: {student.registration}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </td>
-                                        </tr>
-                                    ))
+
+                                                <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
+                                                    {Array.from({ length: 15 }).map((_, i) => {
+                                                        const hasSubject = !!getSubjectForLesson(i);
+                                                        if (!(i < lessonsPerDay || hasSubject)) return null;
+
+                                                        return (
+                                                            <div key={i} style={{ flex: 1, minWidth: '60px', display: 'flex', justifyContent: 'center' }}>
+                                                                <button
+                                                                    className={`attendance-btn ${attendance.get(`${student.id}-${i}`) || 'P'}`}
+                                                                    onClick={() => {
+                                                                        const currentStatus = attendance.get(`${student.id}-${i}`) || 'P';
+                                                                        const nextStatus =
+                                                                            currentStatus === 'P' ? 'F' :
+                                                                                currentStatus === 'F' ? 'J' :
+                                                                                    currentStatus === 'J' ? '-' : 'P';
+                                                                        handleAttendanceChange(student.id, i, nextStatus);
+                                                                    }}
+                                                                    title={`${i + 1}ª Aula - ${getSubjectForLesson(i) || 'Sem disciplina'}`}
+                                                                >
+                                                                    {attendance.get(`${student.id}-${i}`) || 'P'}
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 ) : (
                                     <tr>
                                         <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
