@@ -23,7 +23,9 @@ export default function AttendanceTracker() {
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
     const [recordExists, setRecordExists] = useState(false);
     const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
+    const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
     const [searchStudent, setSearchStudent] = useState('');
+    const [manualSubject, setManualSubject] = useState(''); // New state for manual subject override
 
     // Filter students when class, situation, allStudents or search change
     const students = useMemo(() => {
@@ -159,7 +161,9 @@ export default function AttendanceTracker() {
                     date: selectedDate,
                     lessonIndex,
                     status,
-                    subject: getSubjectForLesson(lessonIndex),
+                    status,
+                    subject: manualSubject || getSubjectForLesson(lessonIndex), // Use manual subject if present
+                    notes: classNotes
                     notes: classNotes
                 });
             });
@@ -334,9 +338,6 @@ export default function AttendanceTracker() {
                         <select
                             className="form-select"
                             value={lessonsPerDay}
-                            onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
-                            disabled={!selectedClassId}
-                        >
                             onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
                             disabled={!selectedClassId}
                         >
@@ -698,53 +699,29 @@ export default function AttendanceTracker() {
                                         <div className="attendance-row header" style={{ minWidth: '800px', marginBottom: '0.5rem' }}>
                                             <div className="student-info" style={{ width: '250px' }}>Protagonista</div>
                                             <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
-                                                {Array.from({ length: 15 }).map((_, i) => {
-                                                    // Determine if we should show this lesson
-                                                    // Show if:
-                                                    // 1. It is within the selected "Aulas por Dia" range (mandatory rows)
-                                                    // 2. OR it has a subject configured in the schedule
-                                                    // 3. OR it has attendance data recorded
-                                                    const hasSubject = !!getSubjectForLesson(i);
-                                                    const hasAttendance = attendance.has(`${students[0]?.id}-${i}`); // Check first student as proxy or check any
-                                                    const isVisible = i < lessonsPerDay || hasSubject || recordExists;
-
-                                                    // Specific check for this column index across all records would be expensive, 
-                                                    // so we trust: Range OR Subject OR (RecordExists AND it was part of that record batch?)
-                                                    // Actually, stick to: Range OR Subject. 
-                                                    // If RecordExists (saved data), we probably want to show what was saved using Smart Logic too.
-
-                                                    // Refined Visibility Logic:
-                                                    // Show if index < lessonsPerDay (User force-show)
-                                                    // Show if hasSubject (Content exists)
-                                                    // Show if we loaded data that definitely goes up to this max index? 
-                                                    // Let's rely on Subject + User Selection primarily.
-
-                                                    if (!isVisible && !hasSubject) return null;
-
-                                                    return (
-                                                        <div key={i} style={{
-                                                            flex: 1,
-                                                            minWidth: '60px',
-                                                            textAlign: 'center',
-                                                            fontSize: '0.75rem',
-                                                            fontWeight: 600,
-                                                            color: 'var(--color-text-secondary)'
-                                                        }}>
-                                                            {i + 1}ª Aula
-                                                            {getSubjectForLesson(i) && (
-                                                                <div style={{
-                                                                    fontSize: '0.65rem',
-                                                                    color: 'var(--color-primary)',
-                                                                    overflow: 'hidden',
-                                                                    textOverflow: 'ellipsis',
-                                                                    whiteSpace: 'nowrap'
-                                                                }}>
-                                                                    {getSubjectForLesson(i)}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )
-                                                })}
+                                                {Array.from({ length: lessonsPerDay }).map((_, i) => (
+                                                    <div key={i} style={{
+                                                        flex: 1,
+                                                        minWidth: '60px',
+                                                        textAlign: 'center',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 600,
+                                                        color: 'var(--color-text-secondary)'
+                                                    }}>
+                                                        {i + 1}ª Aula
+                                                        {(manualSubject || getSubjectForLesson(i)) && (
+                                                            <div style={{
+                                                                fontSize: '0.65rem',
+                                                                color: 'var(--color-primary)',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap'
+                                                            }}>
+                                                                {manualSubject || getSubjectForLesson(i)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
 
@@ -768,29 +745,24 @@ export default function AttendanceTracker() {
                                                 </div>
 
                                                 <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
-                                                    {Array.from({ length: 15 }).map((_, i) => {
-                                                        const hasSubject = !!getSubjectForLesson(i);
-                                                        if (!(i < lessonsPerDay || hasSubject)) return null;
-
-                                                        return (
-                                                            <div key={i} style={{ flex: 1, minWidth: '60px', display: 'flex', justifyContent: 'center' }}>
-                                                                <button
-                                                                    className={`attendance-btn ${attendance.get(`${student.id}-${i}`) || 'P'}`}
-                                                                    onClick={() => {
-                                                                        const currentStatus = attendance.get(`${student.id}-${i}`) || 'P';
-                                                                        const nextStatus =
-                                                                            currentStatus === 'P' ? 'F' :
-                                                                                currentStatus === 'F' ? 'J' :
-                                                                                    currentStatus === 'J' ? '-' : 'P';
-                                                                        handleAttendanceChange(student.id, i, nextStatus);
-                                                                    }}
-                                                                    title={`${i + 1}ª Aula - ${getSubjectForLesson(i) || 'Sem disciplina'}`}
-                                                                >
-                                                                    {attendance.get(`${student.id}-${i}`) || 'P'}
-                                                                </button>
-                                                            </div>
-                                                        )
-                                                    })}
+                                                    {Array.from({ length: lessonsPerDay }).map((_, i) => (
+                                                        <div key={i} style={{ flex: 1, minWidth: '60px', display: 'flex', justifyContent: 'center' }}>
+                                                            <button
+                                                                className={`attendance-btn ${attendance.get(`${student.id}-${i}`) || 'P'}`}
+                                                                onClick={() => {
+                                                                    const currentStatus = attendance.get(`${student.id}-${i}`) || 'P';
+                                                                    const nextStatus =
+                                                                        currentStatus === 'P' ? 'F' :
+                                                                            currentStatus === 'F' ? 'J' :
+                                                                                currentStatus === 'J' ? '-' : 'P';
+                                                                    handleAttendanceChange(student.id, i, nextStatus);
+                                                                }}
+                                                                title={`${i + 1}ª Aula - ${(manualSubject || getSubjectForLesson(i)) || 'Sem disciplina'}`}
+                                                            >
+                                                                {attendance.get(`${student.id}-${i}`) || 'P'}
+                                                            </button>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             </div>
                                         ))}
