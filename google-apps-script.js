@@ -1,6 +1,6 @@
 /**
  * SISTEMA DE FREQUÊNCIA ESCOLAR - GOOGLE APPS SCRIPT
- * Versão: 2.0 (Com Suporte a Disciplinas/Horários)
+ * Versão: 2.1 (Correção de Duplicação e Preservação de Dados)
  */
 
 const SPREADSHEET_ID = ''; // Deixe vazio para usar a planilha atual
@@ -47,7 +47,8 @@ function doPost(e) {
                 if (data.students) updateSheet(ss, 'Protagonistas', data.students);
                 if (data.bimesters) updateSheet(ss, 'Bimestres', data.bimesters);
                 if (data.holidays) updateSheet(ss, 'Feriados', data.holidays);
-                if (data.attendance) saveBatchAttendance(ss, data.attendance);
+                // Evita duplicação limpando a aba antes de salvar o lote completo do App
+                if (data.attendance) updateSheet(ss, 'Frequencia', data.attendance);
                 return createResponse({ success: true, message: 'Sincronização completa realizada' });
 
             case 'saveAttendance':
@@ -78,8 +79,10 @@ function getSheetData(ss, sheetName) {
         const obj = {};
         headers.forEach((header, i) => {
             let val = row[i];
-            // Tratamento para datas do Google Sheets
-            if (val instanceof Date) val = val.toISOString();
+            // Tratamento consistente para datas
+            if (val instanceof Date) {
+                val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+            }
 
             // Converte strings JSON de volta para objeto (ex: schedule)
             if (header === 'schedule' && typeof val === 'string' && val.startsWith('{')) {
@@ -107,7 +110,7 @@ function updateSheet(ss, sheetName, data) {
     data.forEach(item => {
         values.push(headers.map(header => {
             const val = item[header];
-            // Salva objetos (como a grade de horário) como strings JSON
+            // Salva objetos como strings JSON
             return (typeof val === 'object' && val !== null) ? JSON.stringify(val) : (val === undefined ? '' : val);
         }));
     });
@@ -117,13 +120,7 @@ function updateSheet(ss, sheetName, data) {
 
 function saveBatchAttendance(ss, records) {
     const sheet = ss.getSheetByName('Frequencia');
-    const headers = ['id', 'studentId', 'date', 'lessonIndex', 'status', 'subject', 'notes'];
-
-    // Se estiver vazia, coloca os cabeçalhos
-    if (sheet.getLastRow() === 0) {
-        sheet.appendRow(headers);
-    }
-
+    if (!sheet) return;
     records.forEach(record => {
         saveRecord(ss, 'Frequencia', record, ['studentId', 'date', 'lessonIndex']);
     });
@@ -135,12 +132,17 @@ function saveRecord(ss, sheetName, record, keys) {
     const headers = dataRows[0];
     const data = dataRows.slice(1);
 
-    // Encontra os índices das chaves de comparação
     const keyIndices = keys.map(k => headers.indexOf(k));
 
-    // Procura linha existente
+    // Procura linha existente tratando formatos de data
     const rowIndex = data.findIndex(row =>
-        keys.every((k, i) => String(row[keyIndices[i]]) === String(record[k]))
+        keys.every((k, i) => {
+            let cellVal = row[keyIndices[i]];
+            if (cellVal instanceof Date) {
+                cellVal = Utilities.formatDate(cellVal, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+            }
+            return String(cellVal) === String(record[k]);
+        })
     );
 
     if (rowIndex >= 0) {
@@ -154,7 +156,6 @@ function saveRecord(ss, sheetName, record, keys) {
             }
         });
     } else {
-        // Adiciona nova linha respeitando a ordem das colunas
         sheet.appendRow(headers.map(h => {
             let val = record[h];
             if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
@@ -185,9 +186,8 @@ function checkSetup(ss) {
     });
 }
 
-/** Função para rodar manualmente uma vez e autorizar o script */
 function setup() {
     const ss = getSS();
     checkSetup(ss);
-    Logger.log('Configuração concluída com sucesso!');
+    Logger.log('Configuração v2.1 concluída!');
 }

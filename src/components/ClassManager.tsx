@@ -22,6 +22,7 @@ export default function ClassManager() {
         e.preventDefault();
 
         const classData: Class = {
+            ...editingClass,
             id: editingClass?.id || Date.now().toString(),
             name: formData.name,
             year: formData.year,
