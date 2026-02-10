@@ -58,43 +58,46 @@ export default function AttendanceTracker() {
     // Load attendance when date or students change
     useEffect(() => {
         if (selectedClassId && students.length >= 0) {
-            // Check if record exists for any student in this class on this date
+            const classItem = classes.find(c => String(c.id) === String(selectedClassId));
+
+            // 1. First, determine how many lessons to show
             const existingAttendance = getAttendanceByDate(selectedDate);
             const classStudentIds = students.map(s => String(s.id));
-            const hasRecords = existingAttendance.some(r => classStudentIds.includes(String(r.studentId)));
-            setRecordExists(hasRecords);
+            const classRecords = existingAttendance.filter(r => classStudentIds.includes(String(r.studentId)));
+
+            if (classRecords.length > 0) {
+                // If we have records, use the max index recorded
+                const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
+                setLessonsPerDay(maxIdx + 1);
+            } else if (classItem?.lessonsPerDay) {
+                // If no records but class has a default, use that
+                setLessonsPerDay(classItem.lessonsPerDay);
+            } else {
+                setLessonsPerDay(1);
+            }
+
+            setRecordExists(classRecords.length > 0);
 
             const attendanceMap = new Map<string, AttendanceStatus>();
 
-            // First, set everyone visible to 'P' as default if no records exist
-            if (existingAttendance.length === 0) {
+            // 2. Set defaults or load existing
+            if (classRecords.length === 0) {
                 students.forEach(student => {
-                    for (let i = 0; i < lessonsPerDay; i++) {
+                    for (let i = 0; i < (classItem?.lessonsPerDay || 1); i++) {
                         attendanceMap.set(`${student.id}-${i}`, 'P');
                     }
                 });
             } else {
-                // Otherwise just load what's there
-                existingAttendance.forEach(record => {
+                classRecords.forEach(record => {
                     attendanceMap.set(`${record.studentId}-${record.lessonIndex}`, record.status);
                 });
             }
 
-            // Adjust lessonsPerDay if records exist
-            if (existingAttendance.length > 0) {
-                const classRecords = existingAttendance.filter(r => students.some(s => s.id === r.studentId));
-                if (classRecords.length > 0) {
-                    const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
-                    setLessonsPerDay(maxIdx + 1);
-                }
-            }
-
             setAttendance(attendanceMap);
 
-            // Load notes from existing records if any
-            if (existingAttendance.length > 0) {
-                const firstRecord = existingAttendance.find(r => students.some(s => s.id === r.studentId));
-                setClassNotes(firstRecord?.notes || '');
+            // 3. Load notes
+            if (classRecords.length > 0) {
+                setClassNotes(classRecords[0]?.notes || '');
             } else {
                 setClassNotes('');
             }
@@ -172,7 +175,9 @@ export default function AttendanceTracker() {
         // Normaliza a data para YYYY-MM-DD caso venha no formato ISO longo
         const cleanDate = selectedDate.substring(0, 10);
         const [year, month, day] = cleanDate.split('-').map(Number);
-        const d = new Date(year, month - 1, day);
+
+        // Use Noon to avoid any DST/Midnight jump issues
+        const d = new Date(year, month - 1, day, 12, 0, 0);
         const dayName = days[d.getDay()];
 
         return classItem.schedule[dayName]?.[lessonIndex] || '';
