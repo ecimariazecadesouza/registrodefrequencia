@@ -23,7 +23,6 @@ export default function AttendanceTracker() {
     const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info', text: string } | null>(null);
     const [recordExists, setRecordExists] = useState(false);
     const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
-    const [currentHoliday, setCurrentHoliday] = useState<{ description: string, type: string } | null>(null);
     const [searchStudent, setSearchStudent] = useState('');
     const [manualSubject, setManualSubject] = useState(''); // New state for manual subject override
 
@@ -345,6 +344,18 @@ export default function AttendanceTracker() {
                                 <option key={num} value={num}>{num} {num === 1 ? 'Aula' : 'Aulas'}</option>
                             ))}
                         </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Disciplina (Opcional)</label>
+                        <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Ex: Física (sobrescreve horário)"
+                            value={manualSubject}
+                            onChange={(e) => setManualSubject(e.target.value)}
+                            disabled={!selectedClassId}
+                        />
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -781,8 +792,5 @@ export default function AttendanceTracker() {
             )}
 
         </div>
-    )
-}
-        </div >
     );
 }
