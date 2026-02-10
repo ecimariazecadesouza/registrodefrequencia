@@ -380,6 +380,21 @@ export default function AttendanceTracker() {
                     </div>
                 </div>
 
+                {selectedClassId && !classes.find(c => String(c.id) === String(selectedClassId))?.schedule && (
+                    <div style={{
+                        marginTop: '1rem',
+                        padding: '0.75rem',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid var(--color-danger)',
+                        borderRadius: 'var(--radius-md)',
+                        color: 'var(--color-danger)',
+                        fontSize: '0.875rem'
+                    }}>
+                        ⚠️ Esta turma ainda não possui um <strong>Horário Semanal</strong> configurado.
+                        As disciplinas não aparecerão automaticamente até que você defina o horário em "Gestão de Turmas".
+                    </div>
+                )}
+
                 {selectedClassId && (
                     <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '1.5rem' }}>
                         <div className="form-group" style={{ marginBottom: 0 }}>
