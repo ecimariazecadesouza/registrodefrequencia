@@ -169,8 +169,9 @@ export default function AttendanceTracker() {
         if (!classItem || !classItem.schedule) return '';
 
         const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-        // Fix timezone offset for day of week
-        const d = new Date(selectedDate + 'T12:00:00');
+        // Use a more robust way to get local weekday to avoid timezone shifts
+        const [year, month, day] = selectedDate.split('-').map(Number);
+        const d = new Date(year, month - 1, day);
         const dayName = days[d.getDay()];
 
         return classItem.schedule[dayName]?.[lessonIndex] || '';
@@ -567,15 +568,13 @@ export default function AttendanceTracker() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                         {Array.from({ length: lessonsPerDay }).map((_, idx) => (
                                             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                                {lessonsPerDay > 1 && (
-                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', minWidth: '120px' }}>
-                                                        {idx + 1}ª Aula {getSubjectForLesson(idx) && (
-                                                            <span style={{ color: 'var(--color-primary)', display: 'block' }}>
-                                                                {getSubjectForLesson(idx)}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                )}
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', minWidth: '120px' }}>
+                                                    {lessonsPerDay > 1 ? `${idx + 1}ª Aula` : '1ª Aula'} {getSubjectForLesson(idx) && (
+                                                        <span style={{ color: 'var(--color-primary)', display: 'block' }}>
+                                                            {getSubjectForLesson(idx)}
+                                                        </span>
+                                                    )}
+                                                </span>
                                                 <div className="attendance-buttons">
                                                     <button
                                                         className={`attendance-btn present ${attendance.get(`${student.id}-${idx}`) === 'P' ? 'active' : ''}`}
