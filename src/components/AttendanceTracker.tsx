@@ -65,16 +65,46 @@ export default function AttendanceTracker() {
             const classStudentIds = students.map(s => String(s.id));
             const classRecords = existingAttendance.filter(r => classStudentIds.includes(String(r.studentId)));
 
+            let initialLessons = 1;
+
             if (classRecords.length > 0) {
                 // If we have records, use the max index recorded
                 const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
-                setLessonsPerDay(maxIdx + 1);
-            } else if (classItem?.lessonsPerDay) {
-                // If no records but class has a default, use that
-                setLessonsPerDay(classItem.lessonsPerDay);
+                initialLessons = maxIdx + 1;
             } else {
-                setLessonsPerDay(1);
+                // Calculate default based on Period and Schedule content
+                // Default by period
+                let periodDefault = 1;
+                if (classItem?.period === 'Integral') periodDefault = 9;
+                else if (['Manhã', 'Tarde', 'Noite'].includes(classItem?.period || '')) periodDefault = 5;
+
+                // Check schedule for max filled slot
+                let scheduleMax = 0;
+                if (classItem?.schedule) {
+                    const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                    // Use robust date parsing we fixed earlier
+                    const cleanDate = selectedDate.substring(0, 10);
+                    const [year, month, day] = cleanDate.split('-').map(Number);
+                    const d = new Date(year, month - 1, day, 12, 0, 0);
+                    const dayName = days[d.getDay()];
+
+                    const daySchedule = classItem.schedule[dayName];
+                    if (Array.isArray(daySchedule)) {
+                        // Find the last index that has a subject
+                        for (let i = daySchedule.length - 1; i >= 0; i--) {
+                            if (daySchedule[i] && daySchedule[i].trim() !== '') {
+                                scheduleMax = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Use the largest of: class default, period default, or schedule necessity
+                initialLessons = Math.max(classItem?.lessonsPerDay || 0, periodDefault, scheduleMax);
             }
+
+            setLessonsPerDay(initialLessons);
 
             setRecordExists(classRecords.length > 0);
 
@@ -83,7 +113,7 @@ export default function AttendanceTracker() {
             // 2. Set defaults or load existing
             if (classRecords.length === 0) {
                 students.forEach(student => {
-                    for (let i = 0; i < (classItem?.lessonsPerDay || 1); i++) {
+                    for (let i = 0; i < initialLessons; i++) {
                         attendanceMap.set(`${student.id}-${i}`, 'P');
                     }
                 });
