@@ -703,79 +703,54 @@ export default function AttendanceTracker() {
                             </thead>
                             <tbody>
                                 {historySummary.length > 0 ? (
-                                    <div className="attendance-list" style={{ overflowX: 'auto' }}>
-                                        {/* Header Row */}
-                                        <div className="attendance-row header" style={{ minWidth: '800px', marginBottom: '0.5rem' }}>
-                                            <div className="student-info" style={{ width: '250px' }}>Protagonista</div>
-                                            <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
-                                                {Array.from({ length: lessonsPerDay }).map((_, i) => (
-                                                    <div key={i} style={{
-                                                        flex: 1,
-                                                        minWidth: '60px',
-                                                        textAlign: 'center',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 600,
-                                                        color: 'var(--color-text-secondary)'
-                                                    }}>
-                                                        {i + 1}ª Aula
-                                                        {(manualSubject || getSubjectForLesson(i)) && (
-                                                            <div style={{
-                                                                fontSize: '0.65rem',
-                                                                color: 'var(--color-primary)',
-                                                                overflow: 'hidden',
-                                                                textOverflow: 'ellipsis',
-                                                                whiteSpace: 'nowrap'
-                                                            }}>
-                                                                {manualSubject || getSubjectForLesson(i)}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {students.map(student => (
-                                            <div key={student.id} className="attendance-row" style={{ minWidth: '800px' }}>
-                                                <div className="student-info" style={{ width: '250px' }}>
-                                                    <div className="student-avatar" style={{
-                                                        backgroundColor: student.situation === 'Cursando' ? 'var(--color-primary)' : 'var(--color-text-muted)'
-                                                    }}>
-                                                        {getInitials(student.name)}
-                                                    </div>
-                                                    <div style={{ overflow: 'hidden' }}>
-                                                        <div className="student-name" title={student.name}>{student.name}</div>
-                                                        <div className="student-meta">
-                                                            <span className={`situation-badge ${student.situation.toLowerCase()}`}>
-                                                                {student.situation}
-                                                            </span>
-                                                            <span className="student-ra">RA: {student.registration}</span>
-                                                        </div>
-                                                    </div>
+                                    historySummary.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((day) => (
+                                        <tr key={day.date}>
+                                            <td>
+                                                {new Date(day.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                    {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date(day.date + 'T12:00:00').getDay()]}
                                                 </div>
-
-                                                <div className="attendance-inputs" style={{ flex: 1, display: 'flex', gap: '0.5rem', overflowX: 'auto' }}>
-                                                    {Array.from({ length: lessonsPerDay }).map((_, i) => (
-                                                        <div key={i} style={{ flex: 1, minWidth: '60px', display: 'flex', justifyContent: 'center' }}>
-                                                            <button
-                                                                className={`attendance-btn ${attendance.get(`${student.id}-${i}`) || 'P'}`}
-                                                                onClick={() => {
-                                                                    const currentStatus = attendance.get(`${student.id}-${i}`) || 'P';
-                                                                    const nextStatus =
-                                                                        currentStatus === 'P' ? 'F' :
-                                                                            currentStatus === 'F' ? 'J' :
-                                                                                currentStatus === 'J' ? '-' : 'P';
-                                                                    handleAttendanceChange(student.id, i, nextStatus);
-                                                                }}
-                                                                title={`${i + 1}ª Aula - ${(manualSubject || getSubjectForLesson(i)) || 'Sem disciplina'}`}
-                                                            >
-                                                                {attendance.get(`${student.id}-${i}`) || 'P'}
-                                                            </button>
-                                                        </div>
-                                                    ))}
+                                            </td>
+                                            <td>{day.bimester}</td>
+                                            <td>{day.lessons} aulas</td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <div style={{
+                                                        width: '100px',
+                                                        height: '6px',
+                                                        background: 'var(--color-border)',
+                                                        borderRadius: '3px',
+                                                        overflow: 'hidden'
+                                                    }}>
+                                                        <div style={{
+                                                            width: `${(day.presentCount / day.totalCount) * 100}%`,
+                                                            height: '100%',
+                                                            background: 'var(--color-success)'
+                                                        }} />
+                                                    </div>
+                                                    <span style={{ fontSize: '0.875rem' }}>
+                                                        {Math.round((day.presentCount / day.totalCount) * 100)}%
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                                                    {day.presentCount} de {day.totalCount} presenças
+                                                </div>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <button
+                                                    className="btn btn-sm"
+                                                    onClick={() => {
+                                                        setSelectedDate(day.date);
+                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                    }}
+                                                    style={{ border: '1px solid var(--color-border)' }}
+                                                    title="Ver / Editar"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
                                 ) : (
                                     <tr>
                                         <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-text-muted)' }}>
