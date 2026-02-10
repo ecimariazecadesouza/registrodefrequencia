@@ -717,6 +717,22 @@ export default function AttendanceTracker() {
                     </div>
                 </div>
             )}
+
+            {/* DEBUG SECTION - REMOVE LATER */}
+            {selectedClassId && (
+                <div style={{ marginTop: '2rem', padding: '1rem', background: '#f3f4f6', borderRadius: '4px', fontSize: '0.75rem' }}>
+                    <strong>🔍 Debug Info (Temporário):</strong>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>
+                        {JSON.stringify({
+                            aula: lessonsPerDay,
+                            dataSelecionada: selectedDate,
+                            dataLimpa: selectedDate.substring(0, 10),
+                            diaSemana: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][new Date(selectedDate.substring(0, 10).split('-').map(Number)[0], selectedDate.substring(0, 10).split('-').map(Number)[1] - 1, selectedDate.substring(0, 10).split('-').map(Number)[2], 12).getDay()],
+                            gradeHoraria: classes.find(c => String(c.id) === String(selectedClassId))?.schedule
+                        }, null, 2)}
+                    </pre>
+                </div>
+            )}
         </div>
     );
 }
