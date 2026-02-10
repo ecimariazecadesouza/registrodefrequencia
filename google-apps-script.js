@@ -1,6 +1,10 @@
 /**
  * SISTEMA DE FREQUÊNCIA ESCOLAR - GOOGLE APPS SCRIPT
- * Versão: 2.2 (Correção Definitiva de Duplicação e Datas)
+ * Versão: 2.3 (Performance + Migração de Colunas)
+ * 
+ * NOVIDADES:
+ * - Adiciona automaticamente colunas faltantes ("subject", "notes") em planilhas antigas.
+ * - Salva chamadas em lote (Batch) muito mais rápido.
  */
 
 const SPREADSHEET_ID = ''; // Deixe vazio para usar a planilha atual
@@ -56,7 +60,7 @@ function doPost(e) {
 
             case 'saveBatchAttendance':
                 saveBatchAttendance(ss, data.records);
-                return createResponse({ success: true, message: 'Lote de presença salvo' });
+                return createResponse({ success: true, message: 'Lote de presença salvo com sucesso' });
 
             default:
                 return createResponse({ error: 'Ação inválida: ' + action }, 400);
@@ -78,11 +82,10 @@ function getSheetData(ss, sheetName) {
         const obj = {};
         headers.forEach((header, i) => {
             let val = row[i];
-            // Normaliza datas vindas da planilha para formato curto YYYY-MM-DD
+            // Normaliza datas
             if (val instanceof Date) {
                 val = Utilities.formatDate(val, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
             } else if (typeof val === 'string' && val.includes('T') && val.length > 10) {
-                // Limpa strings ISO residuais
                 val = val.substring(0, 10);
             }
 
@@ -111,7 +114,6 @@ function updateSheet(ss, sheetName, data) {
     data.forEach(item => {
         values.push(headers.map(header => {
             let val = item[header];
-            // Garante que datas enviadas pelo App sejam salvas apenas a parte YYYY-MM-DD
             if (header === 'date' && typeof val === 'string') {
                 val = val.substring(0, 10);
             }
@@ -122,14 +124,118 @@ function updateSheet(ss, sheetName, data) {
     sheet.getRange(1, 1, values.length, headers.length).setValues(values);
 }
 
+/**
+ * Versão OTIMIZADA para salvar vários registros de uma vez.
+ * Lê a planilha apenas uma vez, prepara as linhas novas e insere em lote.
+ */
 function saveBatchAttendance(ss, records) {
     const sheet = ss.getSheetByName('Frequencia');
     if (!sheet) return;
-    records.forEach(record => {
-        saveRecord(ss, 'Frequencia', record, ['studentId', 'date', 'lessonIndex']);
+
+    // 1. Ler dados existentes para verificar duplicatas
+    const range = sheet.getDataRange();
+    const values = range.getValues();
+    const headers = values[0]; // Assume que sempre tem cabeçalho pois checkSetup garante
+
+    // Mapeia índices das colunas para acesso rápido
+    const colMap = {};
+    headers.forEach((h, i) => colMap[h] = i);
+
+    // Verifica se colunas chaves existem
+    const keys = ['studentId', 'date', 'lessonIndex'];
+    if (!keys.every(k => colMap.hasOwnProperty(k))) {
+        throw new Error("Colunas chave faltando na planilha Frequencia");
+    }
+
+    // Cria mapa de chaves existentes para lookup rápido: "studentId|date|lessonIndex" -> rowIndex (0-based da matriz values)
+    const existingMap = new Map();
+    values.slice(1).forEach((row, idx) => {
+        const sId = String(row[colMap['studentId']]);
+
+        let dVal = row[colMap['date']];
+        if (dVal instanceof Date) dVal = Utilities.formatDate(dVal, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+        else if (typeof dVal === 'string') dVal = dVal.substring(0, 10);
+        const dateStr = String(dVal);
+
+        const lIdx = String(row[colMap['lessonIndex']]);
+
+        const key = `${sId}|${dateStr}|${lIdx}`;
+        existingMap.set(key, idx + 1); // +1 pq slice cortou o header, então row[0] do slice é row[1] da sheet? Não.
+        // Sheet rows são 1-based.
+        // headers é row 1.
+        // values[1] é row 2.
+        // idx=0 (primeiro do slice) é row 2.
+        // Então rowNum = idx + 2.
+        existingMap.set(key, idx + 2);
     });
+
+    const newRows = [];
+    const updates = [];
+
+    records.forEach(record => {
+        const rSid = String(record.studentId);
+        let rDate = String(record.date).substring(0, 10);
+        const rLidx = String(record.lessonIndex);
+
+        const key = `${rSid}|${rDate}|${rLidx}`;
+
+        const rowNum = existingMap.get(key);
+
+        if (rowNum) {
+            // Atualização: guarda infos para atualizar célula a célula (lento mas seguro para updates esparsos)
+            // Ou melhor, atualiza o array em memória e reescreve tudo? Não, muito arriscado reescrever tudo.
+            // Updates de frequência são raros em batch. Geralmente batch é INSERT.
+            // Para garantir performance, vamos fazer `setValue` apenas se realmente mudou?
+            // Vamos simplificar: se existe, atualiza as colunas que vieram.
+            Object.keys(record).forEach(field => {
+                if (colMap.hasOwnProperty(field)) {
+                    // Adiciona na lista de updates pontuais
+                    let val = record[field];
+                    if (field === 'date' && typeof val === 'string') val = val.substring(0, 10);
+                    if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+
+                    updates.push({
+                        row: rowNum,
+                        col: colMap[field] + 1, // 1-based
+                        val: val
+                    });
+                }
+            });
+        } else {
+            // Novo registro: prepara linha para append em lote
+            const newRow = headers.map(h => {
+                let val = record[h];
+                if (h === 'date' && typeof val === 'string') val = val.substring(0, 10);
+                if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                return val !== undefined ? val : '';
+            });
+            newRows.push(newRow);
+        }
+    });
+
+    // 2. Aplica Updates (se houver)
+    if (updates.length > 0) {
+        // Agrupar updates é complexo no GAS. Vamos fazer um a um. 
+        // Se houver MUITOS updates, isso vai demorar. Mas a expectativa é que seja raro.
+        updates.forEach(u => {
+            sheet.getRange(u.row, u.col).setValue(u.val);
+        });
+    }
+
+    // 3. Aplica Inserts (Lote)
+    if (newRows.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+    }
+
+    // Força flush
+    SpreadsheetApp.flush();
 }
 
+/**
+ * Função legado para manter compatibilidade caso seja chamada diretamente,
+ * mas agora usa a lógica de saveBatchAttendance se possível ou similar.
+ * A original fazia append one-by-one. Mantida apenas para 'saveAttendance' (singular).
+ */
 function saveRecord(ss, sheetName, record, keys) {
     const sheet = ss.getSheetByName(sheetName);
     const dataRows = sheet.getDataRange().getValues();
@@ -138,7 +244,6 @@ function saveRecord(ss, sheetName, record, keys) {
 
     const keyIndices = keys.map(k => headers.indexOf(k));
 
-    // Procura linha existente tratando formatos de data (compara apenas os primeiros 10 caracteres)
     const rowIndex = data.findIndex(row =>
         keys.every((k, i) => {
             let cellVal = row[keyIndices[i]];
@@ -146,11 +251,7 @@ function saveRecord(ss, sheetName, record, keys) {
                 cellVal = Utilities.formatDate(cellVal, ss.getSpreadsheetTimeZone(), "yyyy-MM-dd");
             }
             let recordVal = String(record[k]);
-
-            if (k === 'date') {
-                return String(cellVal).substring(0, 10) === recordVal.substring(0, 10);
-            }
-
+            if (k === 'date') return String(cellVal).substring(0, 10) === recordVal.substring(0, 10);
             return String(cellVal) === recordVal;
         })
     );
@@ -191,15 +292,21 @@ function checkSetup(ss) {
     };
 
     Object.keys(sheets).forEach(name => {
-        if (!ss.getSheetByName(name)) {
-            const sheet = ss.insertSheet(name);
+        let sheet = ss.getSheetByName(name);
+        if (!sheet) {
+            sheet = ss.insertSheet(name);
             sheet.appendRow(sheets[name]);
+        } else {
+            // Verifica colunas faltantes e adiciona!
+            const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn() || 1).getValues()[0];
+            const desiredHeaders = sheets[name];
+            const missing = desiredHeaders.filter(h => !headers.includes(h));
+
+            if (missing.length > 0) {
+                const startCol = headers.length + 1;
+                // Adiciona os novos headers
+                sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+            }
         }
     });
-}
-
-function setup() {
-    const ss = getSS();
-    checkSetup(ss);
-    Logger.log('Configuração v2.2 concluída!');
 }
