@@ -67,42 +67,39 @@ export default function AttendanceTracker() {
 
             let initialLessons = 1;
 
-            if (classRecords.length > 0) {
-                // If we have records, use the max index recorded
-                const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
-                initialLessons = maxIdx + 1;
-            } else {
-                // Calculate default based on Period and Schedule content
-                // Default by period
-                let periodDefault = 1;
-                if (classItem?.period === 'Integral') periodDefault = 9;
-                else if (['Manhã', 'Tarde', 'Noite'].includes(classItem?.period || '')) periodDefault = 5;
+            // 1. Check Schedule for max filled slot
+            let scheduleMax = 0;
+            if (classItem?.schedule) {
+                const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+                const cleanDate = selectedDate.substring(0, 10);
+                const [year, month, day] = cleanDate.split('-').map(Number);
+                const d = new Date(year, month - 1, day, 12, 0, 0);
+                const dayName = days[d.getDay()];
 
-                // Check schedule for max filled slot
-                let scheduleMax = 0;
-                if (classItem?.schedule) {
-                    const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-                    // Use robust date parsing we fixed earlier
-                    const cleanDate = selectedDate.substring(0, 10);
-                    const [year, month, day] = cleanDate.split('-').map(Number);
-                    const d = new Date(year, month - 1, day, 12, 0, 0);
-                    const dayName = days[d.getDay()];
-
-                    const daySchedule = classItem.schedule[dayName];
-                    if (Array.isArray(daySchedule)) {
-                        // Find the last index that has a subject
-                        for (let i = daySchedule.length - 1; i >= 0; i--) {
-                            if (daySchedule[i] && daySchedule[i].trim() !== '') {
-                                scheduleMax = i + 1;
-                                break;
-                            }
+                const daySchedule = classItem.schedule[dayName];
+                if (Array.isArray(daySchedule)) {
+                    for (let i = daySchedule.length - 1; i >= 0; i--) {
+                        if (daySchedule[i] && daySchedule[i].trim() !== '') {
+                            scheduleMax = i + 1;
+                            break;
                         }
                     }
                 }
-
-                // Use the largest of: class default, period default, or schedule necessity
-                initialLessons = Math.max(classItem?.lessonsPerDay || 0, periodDefault, scheduleMax);
             }
+
+            // 2. Check Existing Records
+            let recordsMax = 0;
+            if (classRecords.length > 0) {
+                const maxIdx = Math.max(...classRecords.map(r => r.lessonIndex));
+                recordsMax = maxIdx + 1;
+            }
+
+            // 3. Use the largest of: class default, schedule content, or existing records
+            // We removed the forced "periodDefault" (9 for Integral) to avoid empty rows
+            initialLessons = Math.max(classItem?.lessonsPerDay || 0, scheduleMax, recordsMax);
+
+            // Default to at least 1 if everything is empty
+            if (initialLessons === 0) initialLessons = 1;
 
             setLessonsPerDay(initialLessons);
 
@@ -340,9 +337,12 @@ export default function AttendanceTracker() {
                             onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
                             disabled={!selectedClassId}
                         >
-                            <option value={1}>1 Aula</option>
-                            <option value={2}>2 Aulas</option>
-                            <option value={3}>3 Aulas</option>
+                            onChange={(e) => setLessonsPerDay(parseInt(e.target.value))}
+                            disabled={!selectedClassId}
+                        >
+                            {Array.from({ length: 15 }, (_, i) => i + 1).map(num => (
+                                <option key={num} value={num}>{num} {num === 1 ? 'Aula' : 'Aulas'}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -748,21 +748,9 @@ export default function AttendanceTracker() {
                 </div>
             )}
 
-            {/* DEBUG SECTION - REMOVE LATER */}
-            {selectedClassId && (
-                <div style={{ marginTop: '2rem', padding: '1rem', background: '#f3f4f6', borderRadius: '4px', fontSize: '0.75rem' }}>
-                    <strong>🔍 Debug Info (Temporário):</strong>
-                    <pre style={{ whiteSpace: 'pre-wrap' }}>
-                        {JSON.stringify({
-                            aula: lessonsPerDay,
-                            dataSelecionada: selectedDate,
-                            dataLimpa: selectedDate.substring(0, 10),
-                            diaSemana: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][new Date(selectedDate.substring(0, 10).split('-').map(Number)[0], selectedDate.substring(0, 10).split('-').map(Number)[1] - 1, selectedDate.substring(0, 10).split('-').map(Number)[2], 12).getDay()],
-                            gradeHoraria: classes.find(c => String(c.id) === String(selectedClassId))?.schedule
-                        }, null, 2)}
-                    </pre>
-                </div>
-            )}
         </div>
+    )
+}
+        </div >
     );
 }
