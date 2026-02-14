@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, X, Filter, History } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Filter, History, Search } from 'lucide-react';
 import type { Student, StudentSituation } from '../types';
 import { saveStudent, deleteStudent } from '../utils/storage';
 import { triggerCloudSync } from '../utils/api';
@@ -13,6 +13,7 @@ export default function StudentManager() {
     const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [filterClassId, setFilterClassId] = useState<string>('all');
     const [filterSituation, setFilterSituation] = useState<StudentSituation | 'all'>('Cursando');
+    const [searchQuery, setSearchQuery] = useState('');
     const [isBatchMode, setIsBatchMode] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -26,7 +27,10 @@ export default function StudentManager() {
         const matchesClass = filterClassId === 'all' || String(s.classId) === String(filterClassId);
         const matchesSituation = filterSituation === 'all' ||
             String(s.situation).trim().toLowerCase() === String(filterSituation).trim().toLowerCase();
-        return matchesClass && matchesSituation;
+        const matchesSearch = searchQuery === '' ||
+            String(s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            String(s.registration || '').toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesClass && matchesSituation && matchesSearch;
     });
 
     const generateRA = () => {
@@ -158,7 +162,27 @@ export default function StudentManager() {
                         <h1 className="page-title">Gestão de Protagonistas</h1>
                         <p className="page-subtitle">Cadastre e gerencie os protagonistas da escola</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', minWidth: '200px' }}>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Buscar por nome ou RA..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{ paddingLeft: '2.5rem' }}
+                            />
+                            <Search
+                                size={20}
+                                style={{
+                                    position: 'absolute',
+                                    left: '0.75rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--color-text-muted)'
+                                }}
+                            />
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Filter size={20} />
                             <select
